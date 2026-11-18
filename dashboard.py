@@ -7,26 +7,13 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
+from pressure_proxy import analyze_all
+
 
 ROOT = Path(__file__).resolve().parent
-OUTPUTS = ROOT / "submission_outputs"
-FIGURES = OUTPUTS / "figures"
-FORMAT_PREFIXES = {"IPL": "ipl", "T20I": "t20i"}
-
-# Detect which formats have both batter and bowler ranking files available.
-AVAILABLE_FORMATS = {}
-for _fmt in FORMAT_PREFIXES:
-    _prefix = FORMAT_PREFIXES[_fmt]
-    if (OUTPUTS / f"{_prefix}_batter_rankings.csv").exists() and (OUTPUTS / f"{_prefix}_bowler_rankings.csv").exists():
-        AVAILABLE_FORMATS[_fmt] = True
-
-# Try to load sensitivity checks; hide the section if the file is absent.
-try:
-    sensitivity_data = load_sensitivity()
-    SENSITIVITY_AVAILABLE = True
-except (OSError, pd.errors.ParserError):
-    sensitivity_data = None
-    SENSITIVITY_AVAILABLE = False
+DATA_DIR = ROOT / "prism-uploads"
+FIGURES = ROOT / "submission_outputs" / "figures"
+FORMAT_NAMES = ("IPL", "T20I")
 
 st.set_page_config(
     page_title="T20 Pressure Performance",
@@ -50,20 +37,8 @@ st.markdown(
 
 
 @st.cache_data
-def load_rankings(format_name: str) -> tuple[pd.DataFrame, pd.DataFrame]:
-    prefix = FORMAT_PREFIXES[format_name]
-    batters = pd.read_csv(OUTPUTS / f"{prefix}_batter_rankings.csv")
-    bowlers = pd.read_csv(OUTPUTS / f"{prefix}_bowler_rankings.csv")
-    for frame in (batters, bowlers):
-        if "eligible" in frame:
-            frame["eligible"] = frame["eligible"].astype(str).str.lower().isin({"true", "1", "yes"})
-        frame.sort_values("rank", inplace=True)
-    return batters, bowlers
-
-
-@st.cache_data
-def load_sensitivity() -> pd.DataFrame:
-    return pd.read_csv(OUTPUTS / "sensitivity_checks.csv")
+def load_analysis(data_dir: str):
+    return analyze_all(data_dir)
 
 
 def make_batter_table(frame: pd.DataFrame) -> pd.DataFrame:
@@ -233,14 +208,15 @@ st.caption(
 
 with st.sidebar:
     st.header("Dashboard controls")
-    _format_options = list(AVAILABLE_FORMATS.keys()) if AVAILABLE_FORMATS else ["IPL"]
-    selected_format = st.selectbox("Competition format", _format_options)
+    selected_format = st.selectbox("Competition format", list(FORMAT_NAMES))
 
 try:
-    batter_data, bowler_data = load_rankings(selected_format)
-except (OSError, pd.errors.ParserError) as error:
-    st.error(f"Could not load the analysis outputs: {error}")
+    rankings_by_format, sensitivity_data = load_analysis(str(DATA_DIR))
+except (OSError, pd.errors.ParserError, KeyError, ValueError) as error:
+    st.error(f"Could not build the analysis from the input data: {error}")
     st.stop()
+
+batter_data, bowler_data = rankings_by_format[selected_format]
 
 batter_data = batter_data[batter_data["eligible"]].copy()
 bowler_data = bowler_data[bowler_data["eligible"]].copy()
@@ -260,19 +236,10 @@ with st.sidebar:
 
 top_batters = batter_data.head(10)
 top_bowlers = bowler_data.head(10)
-ipl_available = "IPL" in AVAILABLE_FORMATS
-t20i_available = "T20I" in AVAILABLE_FORMATS
-if ipl_available:
-    ipl_batters, ipl_bowlers = load_rankings("IPL")
-if t20i_available:
-    t20i_batters, t20i_bowlers = load_rankings("T20I")
-
-if ipl_available and t20i_available:
-    batter_overlap = len(set(ipl_batters.head(10)["name"]) & set(t20i_batters.head(10)["name"]))
-    bowler_overlap = len(set(ipl_bowlers.head(10)["bowler_name"]) & set(t20i_bowlers.head(10)["bowler_name"]))
-else:
-    batter_overlap = 0
-    bowler_overlap = 0
+ipl_batters, ipl_bowlers = rankings_by_format["IPL"]
+t20i_batters, t20i_bowlers = rankings_by_format["T20I"]
+batter_overlap = len(set(ipl_batters.head(10)["name"]) & set(t20i_batters.head(10)["name"]))
+bowler_overlap = len(set(ipl_bowlers.head(10)["bowler_name"]) & set(t20i_bowlers.head(10)["bowler_name"]))
 
 st.info(
     "Rates use delivery-event rows, not verified legal balls. The available fields do not support exact score-state, required-run-rate, or economy calculations."
@@ -324,7 +291,7 @@ with overview_tab:
     overlap_columns[1].metric("Bowlers shared by IPL and T20I", f"{bowler_overlap}/10")
     st.caption("Low overlap is a warning against treating performance rankings as transferable across formats.")
 
-    if selected_format == "IPL" and SENSITIVITY_AVAILABLE:
+    if selected_format == "IPL":
         st.markdown("#### Sensitivity checks")
         selected_sensitivity = sensitivity_data[sensitivity_data["format_group"].eq("IPL")].copy()
         selected_sensitivity["top10_jaccard"] = selected_sensitivity["top10_jaccard"].round(2)
@@ -424,7 +391,7 @@ with methodology_tab:
     if states_image.exists():
         st.image(str(states_image), caption="Operational pressure states", width="stretch")
 
-    if selected_format == "IPL" and SENSITIVITY_AVAILABLE:
+    if selected_format == "IPL":
         st.markdown("#### IPL threshold sensitivity")
         st.dataframe(
             sensitivity_data[sensitivity_data["format_group"].eq("IPL")],

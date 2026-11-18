@@ -4,7 +4,9 @@
 # Re-include only the dashboard and its required runtime assets
 !.gitignore
 !dashboard.py
+!pressure_proxy.py
 !requirements.txt
+!requirements-dashboard.txt
 !submission_outputs/
 !submission_outputs/*.csv
 !submission_outputs/figures/
