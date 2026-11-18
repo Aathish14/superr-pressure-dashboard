@@ -25,9 +25,6 @@ st.markdown(
     """
     <style>
     .block-container {padding-top: 2rem; padding-bottom: 2.5rem; max-width: 1500px;}
-    [data-testid="stMetric"] {background: #f4f7fa; border: 1px solid #e1e8ef;
-        padding: 0.9rem 1rem; border-radius: 0.8rem;}
-    [data-testid="stMetricLabel"] {color: #536579;}
     h1, h2, h3 {color: #183b56;}
     </style>
     """,
