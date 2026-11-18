@@ -3,6 +3,7 @@
 
 # Re-include only the dashboard and its required runtime assets
 !.gitignore
+!README.md
 !dashboard.py
 !pressure_proxy.py
 !requirements.txt
