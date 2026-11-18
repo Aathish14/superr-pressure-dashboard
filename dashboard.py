@@ -253,6 +253,10 @@ def methodology_flow_figure() -> go.Figure:
 
 
 st.title("T20 Pressure Performance Dashboard")
+st.markdown(
+    f"🔗 **Source code:** [Aathish14/superr-pressure-dashboard](https://github.com/Aathish14/superr-pressure-dashboard) "
+    f"(GitHub repository)"
+)
 st.caption(
     "A transparent scouting view of pressure-versus-ordinary outcomes. IPL and T20I are analyzed separately."
 )
