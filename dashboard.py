@@ -257,6 +257,7 @@ st.markdown(
     f"🔗 **Source code:** [Aathish14/superr-pressure-dashboard](https://github.com/Aathish14/superr-pressure-dashboard) "
     f"(GitHub repository)"
 )
+st.markdown("**Author:** Aathish Rao A B — Rajasthan Royals")
 st.caption(
     "A transparent scouting view of pressure-versus-ordinary outcomes. IPL and T20I are analyzed separately."
 )
