@@ -203,60 +203,170 @@ def bowler_figures(frame: pd.DataFrame, display_rows: int) -> tuple[go.Figure, g
 
 
 def methodology_flow_figure() -> go.Figure:
-    """Minimal vertical analysis architecture figure."""
+    """Detailed analysis architecture figure with batter/bowler split,
+    key parameters, color-coded stages, and sensitivity feedback loop."""
     fig = go.Figure()
 
-    stages = [
-        ("Raw event data", "ball_by_ball.csv · matches.csv · competitions.csv", 0, "#1f3a5f"),
-        ("Prepare deliveries", "Filter innings 1–2 · exclude revised-overs", -1.2, "#1f3a5f"),
-        ("Pressure states", "Batter: collapse/death · Bowler: partnership > 25", -2.4, "#e07a36"),
-        ("Outcome metrics", "Survival & boundary · credited wickets/phase", -3.6, "#f0ad4e"),
-        ("Shrinkage (κ=30)", "Shrink toward state/phase pooled rates", -4.8, "#2c8c78"),
-        ("Eligibility", "≥30 pressure rows · ≥3 matches · ≥30 ordinary", -6.0, "#8e44ad"),
-        ("Pareto ranking", "ΔSurvival & ΔBoundary · ΔW per 100 rows", -7.2, "#34495e"),
+    # ---------- Row 0: Data ----------
+    fig.add_trace(
+        go.Scatter(
+            x=[0], y=[0], mode="markers+text",
+            marker=dict(size=42, color="#1f3a5f"),
+            text="Raw event data", textposition="bottom center",
+            textfont=dict(color="white", size=10),
+            hovertext="ball_by_ball.csv<br>matches.csv<br>competitions.csv",
+            hoverinfo="text", showlegend=False,
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[1.6], y=[0], mode="markers+text",
+            marker=dict(size=42, color="#1f3a5f"),
+            text="Prepare deliveries", textposition="bottom center",
+            textfont=dict(color="white", size=10),
+            hovertext="Filter innings 1–2<br>Exclude revised-overs matches<br>86,668 IPL / 102,887 T20I rows",
+            hoverinfo="text", showlegend=False,
+        )
+    )
+
+    # ---------- Row 1: Pressure states (batter / bowler split) ----------
+    fig.add_trace(
+        go.Scatter(
+            x=[0.6], y=[-1.6], mode="markers+text",
+            marker=dict(size=42, color="#e07a36"),
+            text="Batter pressure", textposition="bottom center",
+            textfont=dict(color="white", size=10),
+            hovertext="Overs 1–6 with ≥2 wickets lost<br>OR overs 16–20 (death)",
+            hoverinfo="text", showlegend=False,
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[2.6], y=[-1.6], mode="markers+text",
+            marker=dict(size=42, color="#e07a36"),
+            text="Bowler pressure", textposition="bottom center",
+            textfont=dict(color="white", size=10),
+            hovertext="Partnership event-row index > 25<br>Any wicket resets the counter",
+            hoverinfo="text", showlegend=False,
+        )
+    )
+
+    # ---------- Row 2: Outcome metrics ----------
+    fig.add_trace(
+        go.Scatter(
+            x=[0.6], y=[-3.1], mode="markers+text",
+            marker=dict(size=42, color="#f0ad4e"),
+            text="Batter outcomes", textposition="bottom center",
+            textfont=dict(color="white", size=10),
+            hovertext="Survival rate (non-dismissal)<br>Boundary rate (4s & 6s)",
+            hoverinfo="text", showlegend=False,
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[2.6], y=[-3.1], mode="markers+text",
+            marker=dict(size=42, color="#f0ad4e"),
+            text="Bowler outcomes", textposition="bottom center",
+            textfont=dict(color="white", size=10),
+            hovertext="Credited wickets per phase<br>(powerplay / middle / death)",
+            hoverinfo="text", showlegend=False,
+        )
+    )
+
+    # ---------- Row 3: Shrinkage ----------
+    fig.add_trace(
+        go.Scatter(
+            x=[1.6], y=[-4.6], mode="markers+text",
+            marker=dict(size=42, color="#2c8c78"),
+            text="Shrinkage (κ=30)", textposition="bottom center",
+            textfont=dict(color="white", size=10),
+            hovertext="Shrink toward state/phase pooled rates<br>30 pseudo-rows prior",
+            hoverinfo="text", showlegend=False,
+        )
+    )
+
+    # ---------- Row 4: Eligibility ----------
+    fig.add_trace(
+        go.Scatter(
+            x=[1.6], y=[-6.1], mode="markers+text",
+            marker=dict(size=42, color="#8e44ad"),
+            text="Eligibility", textposition="bottom center",
+            textfont=dict(color="white", size=10),
+            hovertext="≥30 pressure rows across ≥3 matches<br>+ ≥30 ordinary rows<br>(IPL: 126 batters / 129 bowlers<br>T20I: 198 batters / 186 bowlers)",
+            hoverinfo="text", showlegend=False,
+        )
+    )
+
+    # ---------- Row 5: Ranking ----------
+    fig.add_trace(
+        go.Scatter(
+            x=[1.6], y=[-7.6], mode="markers+text",
+            marker=dict(size=42, color="#34495e"),
+            text="Pareto ranking", textposition="bottom center",
+            textfont=dict(color="white", size=10),
+            hovertext="ΔSurvival & ΔBoundary (batters)<br>ΔW per 100 rows (bowlers)<br>Positive-both → Pareto front order",
+            hoverinfo="text", showlegend=False,
+        )
+    )
+
+    # ---------- Arrows ----------
+    arrows = [
+        # Data row
+        (0.0, 0, 1.6, 0),
+        # Split to batter & bowler
+        (1.6, 0, 0.6, -1.6),
+        (1.6, 0, 2.6, -1.6),
+        # Batter & bowler to outcomes
+        (0.6, -1.6, 0.6, -3.1),
+        (2.6, -1.6, 2.6, -3.1),
+        # Outcomes to shrinkage
+        (0.6, -3.1, 1.6, -4.6),
+        (2.6, -3.1, 1.6, -4.6),
+        # Shrinkage to eligibility to ranking
+        (1.6, -4.6, 1.6, -6.1),
+        (1.6, -6.1, 1.6, -7.6),
+        # Sensitivity feedback loop (ranking back to pressure states)
+        (1.6, -7.6, 1.6, -1.6),
     ]
-
-    for i, (label, desc, y, color) in enumerate(stages):
-        fig.add_trace(
-            go.Scatter(
-                x=[0], y=[y], mode="markers+text",
-                marker=dict(size=44, color=color),
-                text=label, textposition="bottom center",
-                textfont=dict(color="white", size=12),
-                hovertext=f"{label}<br>{desc}",
-                hoverinfo="text", showlegend=False,
-            )
-        )
+    for x0, y0, x1, y1 in arrows:
         fig.add_annotation(
-            x=0, y=y - 0.55, text=desc, showarrow=False,
-            font=dict(color="#9aa5b1", size=9),
+            x=x1, y=y1, ax=x0, ay=y0,
+            xref="x", yref="y", axref="x", ayref="y",
+            showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=1.5,
+            arrowcolor="#667788",
         )
 
-        if i < len(stages) - 1:
-            fig.add_annotation(
-                x=0, y=y - 1.15, ax=0, ay=y - 0.05,
-                xref="x", yref="y", axref="x", ayref="y",
-                showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=2,
-                arrowcolor="#667788",
-            )
-
+    # Sensitivity loop label (curved dashed arrow text)
     fig.add_annotation(
-        x=-2.6, y=-3.6, text="Sensitivity<br>feedback loop", showarrow=False,
-        font=dict(color="#c0392b", size=10),
-        bgcolor="rgba(192,57,43,0.08)",
+        x=0.3, y=-4.6,
+        text="Sensitivity<br>feedback",
+        showarrow=False,
+        font=dict(color="#c0392b", size=9),
+        bgcolor="rgba(192,57,43,0.1)",
         bordercolor="#c0392b",
-        borderwidth=1,
-        borderpad=3,
-    )
-    fig.add_annotation(
-        x=-2.6, y=-3.6, ax=0, ay=-3.6,
-        xref="x", yref="y", axref="x", ayref="y",
-        showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=1.5,
-        arrowcolor="#c0392b", opacity=0.6,
     )
 
-    fig.update_xaxes(range=[-3.6, 3.6], showgrid=False, zeroline=False, showticklabels=False)
-    fig.update_yaxes(range=[-8.2, 0.8], showgrid=False, zeroline=False, showticklabels=False)
+    # Stage band labels
+    stage_labels = [
+        (0.8, 0.7, "DATA", "#1f3a5f"),
+        (1.6, -0.9, "PRESSURE STATES", "#e07a36"),
+        (1.6, -2.4, "OUTCOME METRICS", "#f0ad4e"),
+        (1.6, -3.9, "SHRINKAGE", "#2c8c78"),
+        (1.6, -5.4, "ELIGIBILITY", "#8e44ad"),
+        (1.6, -6.9, "RANKING", "#34495e"),
+    ]
+    for sx, sy, slabel, scolor in stage_labels:
+        fig.add_annotation(
+            x=sx, y=sy, text=slabel, showarrow=False,
+            font=dict(color=scolor, size=8, family="Arial Black"),
+            bgcolor="rgba(255,255,255,0.05)",
+            bordercolor=scolor,
+            borderwidth=1,
+            borderpad=2,
+        )
+
+    fig.update_xaxes(range=[-0.9, 3.5], showgrid=False, zeroline=False, showticklabels=False)
+    fig.update_yaxes(range=[-8.4, 1.2], showgrid=False, zeroline=False, showticklabels=False)
     fig.update_layout(
         height=620,
         margin={"l": 20, "r": 20, "t": 40, "b": 20},
