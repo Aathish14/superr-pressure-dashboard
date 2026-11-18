@@ -2,6 +2,8 @@
 
 A reproducible, auditable methodology for ranking T20 batters and bowlers by changes in outcome rates under observable pressure proxies, computed from ball-by-ball event data.
 
+**Live app:** https://superr-pressure-dashboard.streamlit.app/
+
 ## Repository contents
 
 | File | Purpose |
@@ -197,6 +199,7 @@ The app will be available at `http://localhost:8501`.
 - **Repository:** `Aathish14/superr-pressure-dashboard`
 - **Branch:** `main`
 - **App file:** `dashboard.py`
+- **Live app:** https://superr-pressure-dashboard.streamlit.app/
 
 Before deploying, ensure `ball_by_ball.csv`, `matches.csv`, and `competitions.csv` are accessible to the app (they are gitignored in this repo).
 
