@@ -1,0 +1,15 @@
+# Ignore everything by default
+*
+
+# Re-include only the dashboard and its required runtime assets
+!.gitignore
+!dashboard.py
+!requirements.txt
+!submission_outputs/
+!submission_outputs/*.csv
+!submission_outputs/figures/
+!submission_outputs/figures/*.png
+
+# Explicitly never publish (redundant with * above, but clear)
+submission_report.pdf
+AGENTS.md
