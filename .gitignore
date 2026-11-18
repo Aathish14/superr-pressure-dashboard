@@ -12,7 +12,8 @@
 !submission_outputs/*.csv
 !submission_outputs/figures/
 !submission_outputs/figures/*.png
+!submission_report/
+!submission_report/*.pdf
 
 # Explicitly never publish (redundant with * above, but clear)
-submission_report.pdf
 AGENTS.md
