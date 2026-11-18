@@ -7,8 +7,6 @@
 !pressure_proxy.py
 !requirements.txt
 !requirements-dashboard.txt
-!prism-uploads/
-!prism-uploads/*.csv
 !submission_outputs/
 !submission_outputs/*.csv
 !submission_outputs/figures/

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 
-DEFAULT_DATA_DIR = Path("prism-uploads")
+DEFAULT_DATA_DIR = Path(".")
 FORMATS = ("IPL", "T20I")
 PRIOR_ROWS = 30
 MIN_PRESSURE_ROWS = 30

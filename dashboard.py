@@ -11,7 +11,7 @@ from pressure_proxy import analyze_all
 
 
 ROOT = Path(__file__).resolve().parent
-DATA_DIR = ROOT / "prism-uploads"
+DATA_DIR = ROOT
 FIGURES = ROOT / "submission_outputs" / "figures"
 FORMAT_NAMES = ("IPL", "T20I")
 
