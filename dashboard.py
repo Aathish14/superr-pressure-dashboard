@@ -485,10 +485,10 @@ with methodology_tab:
         r"\widehat{p}_{i,s}^{(m)}=\frac{x_{i,s}^{(m)}+\kappa\,p_s^{(m)}}{n_{i,s}+\kappa},\qquad \kappa=30"
     )
     st.caption(
-        "For batter $i$ and state $s\in\{P,O\}$: $x_{i,s}^{(m)}$ is the outcome count, $n_{i,s}$ its row exposure, "
-        "and $p_s^{(m)}$ the pooled rate for that state within the format. Ranking axes are the pressure-minus-ordinary "
-        "differences $\Delta S_i=\widehat p_{i,P}^{(S)}-\widehat p_{i,O}^{(S)}$ and "
-        "$\Delta B_i=\widehat p_{i,P}^{(B)}-\widehat p_{i,O}^{(B)}$. Players positive on both axes are ordered by Pareto front."
+        r"For batter $i$ and state $s\in\{P,O\}$: $x_{i,s}^{(m)}$ is the outcome count, $n_{i,s}$ its row exposure, "
+        r"and $p_s^{(m)}$ the pooled rate for that state within the format. Ranking axes are the pressure-minus-ordinary "
+        r"differences $\Delta S_i=\widehat p_{i,P}^{(S)}-\widehat p_{i,O}^{(S)}$ and "
+        r"$\Delta B_i=\widehat p_{i,P}^{(B)}-\widehat p_{i,O}^{(B)}$. Players positive on both axes are ordered by Pareto front."
     )
 
     st.markdown("#### Bowling shrinkage (credited wickets per phase)")
@@ -496,8 +496,8 @@ with methodology_tab:
         r"\widehat{r}_{i,g,s}=\frac{w_{i,g,s}+\kappa\,\lambda_{g,s}}{n_{i,g,s}+\kappa},\qquad \kappa=30"
     )
     st.caption(
-        "For bowler $i$, over phase $g$, and state $s$: $w_{i,g,s}$ credited wickets, $n_{i,g,s}$ delivery-row exposure, "
-        "and $\lambda_{g,s}$ the pooled phase/state rate."
+        r"For bowler $i$, over phase $g$, and state $s$: $w_{i,g,s}$ credited wickets, $n_{i,g,s}$ delivery-row exposure, "
+        r"and $\lambda_{g,s}$ the pooled phase/state rate."
     )
 
     st.markdown("#### Bowler weighted delta")
@@ -505,8 +505,8 @@ with methodology_tab:
         r"\Delta W_i=\frac{\sum_g n_{i,g,P}(\widehat{r}_{i,g,P}-\widehat{r}_{i,g,O})}{\sum_g n_{i,g,P}}"
     )
     st.caption(
-        "Phase-specific pressure-minus-ordinary changes are aggregated using each bowler’s pressure-row exposure. "
-        "Bowler rates and $\Delta W_i$ are reported as credited wickets per 100 delivery rows, not per legal ball."
+        r"Phase-specific pressure-minus-ordinary changes are aggregated using each bowler’s pressure-row exposure. "
+        r"Bowler rates and $\Delta W_i$ are reported as credited wickets per 100 delivery rows, not per legal ball."
     )
 
     st.markdown("### Analysis architecture")
@@ -523,7 +523,7 @@ with methodology_tab:
 
     st.markdown("### Reliability and limitations")
     st.warning(
-        """
+        r"""
         **These are observable proxies, not exact match leverage.** The pressure states capture innings phase and
         wicket/partnership context, not exact contest closeness. Across-match support is checked by requiring pressure
         exposure in at least 3 distinct matches, but no leave-one-match-out analysis or bootstrap uncertainty interval
