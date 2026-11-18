@@ -341,7 +341,7 @@ def methodology_flow_figure() -> go.Figure:
         x=0.3, y=-4.6,
         text="Sensitivity<br>feedback",
         showarrow=False,
-        textfont=dict(color="#c0392b", size=9),
+        font=dict(color="#c0392b", size=9),
         bgcolor="rgba(192,57,43,0.1)",
         bordercolor="#c0392b",
     )
@@ -358,7 +358,7 @@ def methodology_flow_figure() -> go.Figure:
     for sx, sy, slabel, scolor in stage_labels:
         fig.add_annotation(
             x=sx, y=sy, text=slabel, showarrow=False,
-            textfont=dict(color=scolor, size=8, family="Arial Black"),
+            font=dict(color=scolor, size=8, family="Arial Black"),
             bgcolor="rgba(255,255,255,0.05)",
             bordercolor=scolor,
             borderwidth=1,
