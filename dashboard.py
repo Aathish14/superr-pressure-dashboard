@@ -38,24 +38,24 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    .block-container {padding-top: 1.5rem; padding-bottom: 2.5rem; max-width: 1600px;}
+    .block-container {padding-top: 1rem; padding-bottom: 2.5rem; max-width: 1600px;}
     h1, h2, h3 {color: #ffffff;}
     .stMetric {background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
         border: 1px solid #334155; padding: 1rem 1.25rem; border-radius: 10px;
         box-shadow: 0 4px 6px rgba(0,0,0,0.3);}
     .stMetric [data-testid="stMetricValue"] {color: #fbbf24 !important; font-size: 1.75rem;}
     .stMetric [data-testid="stMetricLabel"] {color: #94a3b8 !important;}
-    .luxury-header {background: linear-gradient(90deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
-        border: 1px solid #4f46e5; border-radius: 12px; padding: 1rem 2rem;
-        margin-bottom: 2rem; box-shadow: 0 8px 24px rgba(30, 41, 59, 0.4);
-        display: flex; align-items: center; justify-content: space-between; gap: 1rem;}
-    .rr-logo, .ipl-logo {width: 70px; height: auto; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));}
-    .header-text h1 {color: #fbbf24; margin: 0; font-size: 1.75rem; letter-spacing: 1px;}
-    .header-text .subtitle {color: #cbd5e1; margin-top: 0.25rem; font-size: 0.9rem;
-        letter-spacing: 0.5px; text-transform: uppercase;}
+    .top-banner {background: linear-gradient(90deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+        border: 2px solid #4f46e5; border-radius: 16px; padding: 2.5rem 3rem;
+        margin: 1rem 0 3rem 0; box-shadow: 0 20px 60px rgba(15, 23, 42, 0.6);
+        display: flex; align-items: center; justify-content: space-between; gap: 2rem;}
+    .top-logo {width: 160px; height: auto; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.5));}
+    .banner-content h1 {color: #fbbf24; margin: 0; font-size: 3rem; letter-spacing: 3px;}
+    .banner-content .subtitle {color: #cbd5e1; margin-top: 0.75rem; font-size: 1.25rem;
+        letter-spacing: 1.5px; text-transform: uppercase;}
     .rr-badge {display: inline-block; background: #fbbf24; color: #1e1b4b;
-        font-weight: 700; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;
-        margin-left: 8px; letter-spacing: 1px;}
+        font-weight: 700; padding: 4px 12px; border-radius: 6px; font-size: 1rem;
+        margin-left: 12px; letter-spacing: 2px;}
     .tab-card {background: #0f172a; border: 1px solid #334155; border-radius: 10px;
         padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3);}
     .section-title {color: #fbbf24; font-size: 1.25rem; font-weight: 600;
@@ -412,13 +412,13 @@ def methodology_flow_figure() -> go.Figure:
 
 st.markdown(
     f"""
-    <div class="luxury-header">
-        <img src="{RR_LOGO_B64}" class="rr-logo" alt="RR Logo">
-        <div class="header-text">
+    <div class="top-banner">
+        <img src="{RR_LOGO_B64}" class="top-logo" alt="RR Logo">
+        <div class="banner-content">
             <h1>T20 Pressure Performance Dashboard <span class="rr-badge">RAJASTHAN ROYALS</span></h1>
             <div class="subtitle">Pressure-Proxy Scouting System · IPL &amp; T20I · Rajasthan Royals Analytics</div>
         </div>
-        <img src="{IPL_LOGO_B64}" class="ipl-logo" alt="IPL Logo">
+        <img src="{IPL_LOGO_B64}" class="top-logo" alt="IPL Logo">
     </div>
     """,
     unsafe_allow_html=True,
