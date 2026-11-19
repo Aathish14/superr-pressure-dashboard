@@ -33,10 +33,13 @@ st.markdown(
     .stMetric [data-testid="stMetricLabel"] {color: #94a3b8 !important;}
     .luxury-header {background: linear-gradient(90deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
         border: 1px solid #4f46e5; border-radius: 12px; padding: 1.5rem 2rem;
-        margin-bottom: 2rem; box-shadow: 0 8px 24px rgba(30, 41, 59, 0.4);}
-    .luxury-header h1 {color: #fbbf24; margin: 0; font-size: 2rem; letter-spacing: 2px;}
-    .luxury-header .subtitle {color: #cbd5e1; margin-top: 0.25rem; font-size: 0.95rem;
-        letter-spacing: 1px; text-transform: uppercase;}
+        margin-bottom: 2rem; box-shadow: 0 8px 24px rgba(30, 41, 59, 0.4);
+        display: flex; align-items: center; gap: 1.5rem;}
+    .rr-logo {width: 90px; height: auto; border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);}
+    .header-text h1 {color: #fbbf24; margin: 0; font-size: 1.75rem; letter-spacing: 1px;}
+    .header-text .subtitle {color: #cbd5e1; margin-top: 0.25rem; font-size: 0.9rem;
+        letter-spacing: 0.5px; text-transform: uppercase;}
     .rr-badge {display: inline-block; background: #fbbf24; color: #1e1b4b;
         font-weight: 700; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;
         margin-left: 8px; letter-spacing: 1px;}
@@ -397,8 +400,11 @@ def methodology_flow_figure() -> go.Figure:
 st.markdown(
     """
     <div class="luxury-header">
-        <h1>🏏 T20 Pressure Performance Dashboard <span class="rr-badge">RAJASTHAN ROYALS</span></h1>
-        <div class="subtitle">Pressure-Proxy Scouting System · IPL &amp; T20I · Rajasthan Royals Analytics</div>
+        <img src="Rajasthan-Royals-Logo-768x432.png" class="rr-logo" alt="RR Logo">
+        <div class="header-text">
+            <h1>T20 Pressure Performance Dashboard <span class="rr-badge">RAJASTHAN ROYALS</span></h1>
+            <div class="subtitle">Pressure-Proxy Scouting System · IPL &amp; T20I · Rajasthan Royals Analytics</div>
+        </div>
     </div>
     """,
     unsafe_allow_html=True,
