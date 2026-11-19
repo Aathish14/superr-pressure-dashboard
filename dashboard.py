@@ -496,8 +496,8 @@ st.info(
 # ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
-overview_tab, batting_tab, bowling_tab, comparison_tab, methodology_tab = st.tabs(
-    ["Overview", "Batting", "Bowling", "Compare Players", "Methodology & reliability"]
+overview_tab, batting_tab, bowling_tab, comparison_tab, novelty_tab, methodology_tab = st.tabs(
+    ["Overview", "Batting", "Bowling", "Compare Players", "Novelty & Method", "Methodology & reliability"]
 )
 
 with overview_tab:
@@ -711,6 +711,91 @@ with comparison_tab:
             hide_index=True,
             width="stretch",
         )
+
+with novelty_tab:
+    st.subheader("Novelty & Methodological Contribution")
+    st.markdown(
+        """
+        > **Methodological contribution.** This work does not claim to introduce a new statistical theory of pressure.
+        > Its contribution is an auditable, role-aware scouting workflow suited to the limitations of the supplied
+        > delivery data. It defines separate batting and bowling pressure proxies, compares pressure outcomes with
+        > player-specific ordinary baselines, applies shrinkage and multi-match eligibility rules, adjusts bowling
+        > comparisons for over phase, and reports threshold sensitivity and cross-format results. The method therefore
+        > offers a transparent alternative to rankings based only on aggregate performance or an opaque single score,
+        > while treating its results as descriptive scouting signals rather than a definitive measure of clutch ability.
+        """
+    )
+
+    st.markdown("---")
+
+    st.markdown("### What distinguishes this approach")
+
+    novelty_col1, novelty_col2 = st.columns(2)
+
+    with novelty_col1:
+        st.markdown("#### Role-aware pressure states")
+        st.markdown(
+            "Pressure is not treated as one identical situation. Batters are assessed in "
+            "**early-innings collapse** (overs 1–6 with ≥2 wickets lost) or **death overs** "
+            "(overs 16–20); bowlers are assessed during **established partnerships** "
+            "(partnership event-row index > 25)."
+        )
+
+        st.markdown("#### Player-specific baselines")
+        st.markdown(
+            "The question is not who has the most boundaries or wickets overall, but whether "
+            "a player's selected outcomes **improve under pressure compared with their own "
+            "ordinary rows** — survival and boundary production for batters, credited-wicket "
+            "rate for bowlers."
+        )
+
+    with novelty_col2:
+        st.markdown("#### Distinct batting dimensions")
+        st.markdown(
+            "Survival (non-dismissal rate) and boundary production remain **separate ranking "
+            "dimensions** rather than being collapsed into one opaque 'clutch' score."
+        )
+
+        st.markdown("#### Shrinkage & eligibility")
+        st.markdown(
+            "Small samples are pulled toward state/phase averages (κ=30 prior). Eligibility "
+            "requires ≥30 pressure rows across ≥3 matches, and bowling comparisons are "
+            "matched by over phase (powerplay / middle / death)."
+        )
+
+    st.markdown("---")
+
+    st.markdown("### Honest scope & contrast")
+
+    st.info(
+        """
+        **This is a pragmatic, auditable alternative — not a claim of invention.**
+
+        Published T20I studies define pressure using required run rate and remaining resources,
+        then use pressure indices to predict match outcomes and weight batter contributions.
+        More sophisticated published approaches exist. This method does not compete with them
+        on match-outcome prediction or win-probability modelling.
+
+        **Where this method fits:** The supplied data do not reliably support exact score-state,
+        required-run-rate, or legal-ball economy calculations. This workflow is designed for
+        those constraints — it reconstructs what *can* be audited from the available delivery
+        events, and it is transparent about where confidence is limited.
+
+        **Confidence limits shown:**
+        - IPL and T20I are analyzed **separately** (not pooled)
+        - Threshold sensitivity reveals whether top-ten membership changes under alternative
+          pressure definitions
+        - Results are **descriptive associations**, not causal evidence of a universal clutch trait
+        """
+    )
+
+    st.markdown("---")
+
+    st.markdown("### Reference")
+    st.markdown(
+        "Published pressure-index approach: "
+        "[Sage Open: A pressure index for T20 cricket](https://journals.sagepub.com/doi/full/10.3233/JSA-240792)"
+    )
 
 with methodology_tab:
     definitions_column, outcomes_column = st.columns(2)
