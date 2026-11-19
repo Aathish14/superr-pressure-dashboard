@@ -3,12 +3,22 @@ from __future__ import annotations
 from pathlib import Path
 import base64
 
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from pressure_proxy import analyze_all
+from pressure_proxy import (
+    analyze_all,
+    batter_bootstrap_ci,
+    bowler_bootstrap_ci,
+    batter_match_provenance,
+    bowler_match_provenance,
+    bowler_phase_breakdown,
+    detect_rr_team_id,
+    player_is_rr,
+)
 
 
 ROOT = Path(__file__).resolve().parent
@@ -27,6 +37,98 @@ def load_image_b64(filename: str) -> str:
 
 RR_LOGO_B64 = load_image_b64("images/Rajasthan-Royals-Logo-768x432.png")
 IPL_LOGO_B64 = load_image_b64("images/ipl-logo.png")
+
+
+# ---------------------------------------------------------------------------
+# Cached bootstrap CI computation (on-demand, not at startup)
+# ---------------------------------------------------------------------------
+@st.cache_data(show_spinner=False)
+def _batter_ci_cached(
+    data_dir: str,
+    format_group: str,
+    player_id: object,
+    player_name: str,
+    pressure_state_hash: str,
+) -> dict:
+    # Rebuild deliveries + pressure mask from raw data (lightweight subset)
+    from pressure_proxy import load_data, prepare_deliveries
+    balls, _, match_info = load_data(data_dir)
+    deliveries = prepare_deliveries(balls, match_info)
+    scoped = deliveries[deliveries["format_group"].eq(format_group)].copy()
+    if pressure_state_hash == "base":
+        pressure_mask = scoped["pressure_batting"]
+    else:
+        # Fallback to base mask; custom thresholds handled via session state
+        pressure_mask = scoped["pressure_batting"]
+    return batter_bootstrap_ci(
+        scoped, format_group, pressure_mask,
+        player_id, player_name, n_bootstrap=400,
+    )
+
+
+@st.cache_data(show_spinner=False)
+def _bowler_ci_cached(
+    data_dir: str,
+    format_group: str,
+    player_id: object,
+    player_name: str,
+    partner_threshold: int,
+) -> dict:
+    from pressure_proxy import load_data, prepare_deliveries
+    balls, _, match_info = load_data(data_dir)
+    deliveries = prepare_deliveries(balls, match_info)
+    scoped = deliveries[deliveries["format_group"].eq(format_group)].copy()
+    return bowler_bootstrap_ci(
+        scoped, format_group, partner_threshold,
+        player_id, player_name, n_bootstrap=400,
+    )
+
+
+@st.cache_data(show_spinner=False)
+def get_deliveries(data_dir: str) -> pd.DataFrame:
+    from pressure_proxy import load_data, prepare_deliveries
+    balls, _, match_info = load_data(data_dir)
+    return prepare_deliveries(balls, match_info)
+
+
+@st.cache_data(show_spinner=False)
+def get_rankings(
+    data_dir: str,
+    format_group: str,
+    collapse_wickets: int,
+    death_over_start: int,
+    partner_threshold: int,
+    min_pressure_matches: int,
+):
+    """Recompute rankings with custom pressure thresholds."""
+    from pressure_proxy import (
+        load_data, prepare_deliveries, rank_batters, rank_bowlers,
+        MIN_PRESSURE_ROWS,
+    )
+    balls, _, match_info = load_data(data_dir)
+    deliveries = prepare_deliveries(balls, match_info)
+    scoped = deliveries[deliveries["format_group"].eq(format_group)].copy()
+
+    bat = scoped[scoped["batter_faced_proxy"]].copy()
+    bat["pressure"] = (
+        (bat["overid"].le(6) & bat["wickets_before"].ge(collapse_wickets))
+        | bat["overid"].ge(death_over_start)
+    )
+    batters = rank_batters(scoped, format_group, bat["pressure"], compute_ci=False)
+    batters["eligible"] = (
+        batters["pressure_deliveries"].ge(MIN_PRESSURE_ROWS)
+        & batters["pressure_matches"].ge(min_pressure_matches)
+        & batters["ordinary_deliveries"].ge(MIN_PRESSURE_ROWS)
+    )
+    batters = batters[batters["eligible"]].copy()
+
+    scoped_b = scoped.copy()
+    scoped_b["pressure"] = scoped_b["partnership_delivery_index"].gt(partner_threshold)
+    scoped_b = scoped_b[scoped_b["bowler_id"].notna() & scoped_b["bowling_phase"].notna()].copy()
+    bowlers = rank_bowlers(scoped, format_group, partner_threshold, compute_ci=False)
+    bowlers = bowlers[bowlers["eligible"]].copy()
+
+    return batters, bowlers
 
 st.set_page_config(
     page_title="T20 Pressure Performance",
@@ -80,10 +182,19 @@ except (OSError, pd.errors.ParserError, KeyError, ValueError) as error:
 
 def make_batter_table(frame: pd.DataFrame) -> pd.DataFrame:
     columns = [
-        "rank", "name", "pressure_deliveries", "pressure_matches",
+        "rank", "name", "pressure_deliveries", "pressure_matches", "is_rr",
         "survival_ordinary", "survival_pressure", "survival_delta",
         "boundary_ordinary", "boundary_pressure", "boundary_delta",
     ]
+    ci_columns = [
+        "survival_delta_ci_low", "survival_delta_ci_high",
+        "boundary_delta_ci_low", "boundary_delta_ci_high",
+    ]
+    for col in ci_columns:
+        if col not in frame.columns:
+            frame = frame.copy()
+            frame[col] = np.nan
+    columns = columns + ci_columns
     table = frame[columns].copy()
     percentage_columns = [
         "survival_ordinary", "survival_pressure", "survival_delta",
@@ -96,36 +207,53 @@ def make_batter_table(frame: pd.DataFrame) -> pd.DataFrame:
             "name": "Batter",
             "pressure_deliveries": "Pressure rows",
             "pressure_matches": "Pressure matches",
+            "is_rr": "RR Team",
             "survival_ordinary": "Survival ordinary (%)",
             "survival_pressure": "Survival pressure (%)",
             "survival_delta": "Survival change (pp)",
+            "survival_delta_ci_low": "Survival CI low (pp)",
+            "survival_delta_ci_high": "Survival CI high (pp)",
             "boundary_ordinary": "Boundary ordinary (%)",
             "boundary_pressure": "Boundary pressure (%)",
             "boundary_delta": "Boundary change (pp)",
+            "boundary_delta_ci_low": "Boundary CI low (pp)",
+            "boundary_delta_ci_high": "Boundary CI high (pp)",
         }
     )
+    table["RR Team"] = table["RR Team"].map({True: "★ RR", False: ""})
+    return table
 
 
 def make_bowler_table(frame: pd.DataFrame) -> pd.DataFrame:
-    table = frame[
-        [
-            "rank", "bowler_name", "pressure_deliveries", "pressure_matches",
-            "pressure_wickets", "ordinary_wickets_per_100",
-            "pressure_wickets_per_100", "delta_per_100",
-        ]
-    ].copy()
+    columns = [
+        "rank", "bowler_name", "pressure_deliveries", "pressure_matches", "is_rr",
+        "pressure_wickets", "ordinary_wickets_per_100",
+        "pressure_wickets_per_100", "delta_per_100",
+    ]
+    ci_columns = ["delta_per_100_ci_low", "delta_per_100_ci_high"]
+    for col in ci_columns:
+        if col not in frame.columns:
+            frame = frame.copy()
+            frame[col] = np.nan
+    columns = columns + ci_columns
+    table = frame[columns].copy()
     return table.rename(
         columns={
             "rank": "Rank",
             "bowler_name": "Bowler",
             "pressure_deliveries": "Pressure rows",
             "pressure_matches": "Pressure matches",
+            "is_rr": "RR Team",
             "pressure_wickets": "Pressure wickets",
             "ordinary_wickets_per_100": "Ordinary rate (/100 rows)",
             "pressure_wickets_per_100": "Pressure rate (/100 rows)",
             "delta_per_100": "Change (/100 rows)",
+            "delta_per_100_ci_low": "CI low (/100 rows)",
+            "delta_per_100_ci_high": "CI high (/100 rows)",
         }
     )
+    table["RR Team"] = table["RR Team"].map({True: "★ RR", False: ""})
+    return table
 
 
 def batter_figure(frame: pd.DataFrame) -> go.Figure:
@@ -134,6 +262,21 @@ def batter_figure(frame: pd.DataFrame) -> go.Figure:
     chart["boundary_delta_pp"] = chart["boundary_delta"] * 100
     chart["selection"] = chart["rank"].le(10).map({True: "Top 10", False: "Other eligible"})
     chart["label"] = chart["name"].where(chart["rank"].le(10), "")
+
+    # Asymmetric 95% CI error bars (percentage points)
+    chart["surv_err_plus"] = (
+        chart.get("survival_delta_ci_high", chart["survival_delta"]) * 100 - chart["survival_delta_pp"]
+    )
+    chart["surv_err_minus"] = (
+        chart["survival_delta_pp"] - chart.get("survival_delta_ci_low", chart["survival_delta"]) * 100
+    )
+    chart["bound_err_plus"] = (
+        chart.get("boundary_delta_ci_high", chart["boundary_delta"]) * 100 - chart["boundary_delta_pp"]
+    )
+    chart["bound_err_minus"] = (
+        chart["boundary_delta_pp"] - chart.get("boundary_delta_ci_low", chart["boundary_delta"]) * 100
+    )
+
     figure = px.scatter(
         chart,
         x="survival_delta_pp",
@@ -149,6 +292,14 @@ def batter_figure(frame: pd.DataFrame) -> go.Figure:
             "boundary_delta_pp": ":.2f",
             "selection": False,
             "label": False,
+        },
+        error_x={
+            "array": chart["surv_err_plus"],
+            "arrayminus": chart["surv_err_minus"],
+        },
+        error_y={
+            "array": chart["bound_err_plus"],
+            "arrayminus": chart["bound_err_minus"],
         },
         category_orders={"selection": ["Other eligible", "Top 10"]},
         color_discrete_map={"Other eligible": "#9aafbd", "Top 10": "#e07a36"},
@@ -190,6 +341,10 @@ def bowler_figures(frame: pd.DataFrame, display_rows: int) -> tuple[go.Figure, g
             "pressure_matches": True,
             "pressure_wickets": True,
             "delta_per_100": ":.2f",
+        },
+        error_x={
+            "array": ordered.get("delta_per_100_ci_high", ordered["delta_per_100"]) - ordered["delta_per_100"],
+            "arrayminus": ordered["delta_per_100"] - ordered.get("delta_per_100_ci_low", ordered["delta_per_100"]),
         },
         labels={
             "delta_per_100": "Credited-wicket change per 100 rows",
@@ -465,17 +620,36 @@ with st.sidebar:
     st.header("Dashboard controls")
     selected_format = st.selectbox("Competition format", list(FORMAT_NAMES))
 
+    st.markdown("#### Pressure thresholds")
+    collapse_wickets = st.selectbox("Collapse: wickets lost before row (overs 1–6)", [1, 2, 3], index=1)
+    death_over_start = st.selectbox("Death overs start at over", [15, 16, 17], index=1)
+    partner_threshold = st.selectbox("Bowler: partnership index >", [20, 25, 30], index=1)
+    min_pressure_matches = st.selectbox("Min pressure matches", [1, 2, 3, 4, 5], index=2)
+
 try:
-    batter_data, bowler_data = rankings_by_format[selected_format]
-except KeyError:
-    st.error(f"No ranking data available for {selected_format}.")
+    batter_data, bowler_data = get_rankings(
+        str(ROOT), selected_format,
+        collapse_wickets, death_over_start, partner_threshold, min_pressure_matches,
+    )
+except (OSError, pd.errors.ParserError, KeyError, ValueError) as error:
+    st.error(f"Could not build the analysis from the input data: {error}")
+    st.stop()
+
+if batter_data.empty or bowler_data.empty:
+    st.error(f"No eligible ranking rows were found for {selected_format} with these thresholds.")
     st.stop()
 
 batter_data = batter_data[batter_data["eligible"]].copy()
 bowler_data = bowler_data[bowler_data["eligible"]].copy()
-if batter_data.empty or bowler_data.empty:
-    st.error(f"No eligible ranking rows were found for {selected_format}.")
-    st.stop()
+
+# Rajasthan Royals affiliation flag (for RR scout context)
+rr_team_id = detect_rr_team_id(get_deliveries(str(ROOT)))
+batter_data["is_rr"] = batter_data["player_id"].apply(
+    lambda pid: player_is_rr(get_deliveries(str(ROOT)), selected_format, pid, "batter", rr_team_id)
+)
+bowler_data["is_rr"] = bowler_data["bowler_id"].apply(
+    lambda bid: player_is_rr(get_deliveries(str(ROOT)), selected_format, bid, "bowler", rr_team_id)
+)
 
 maximum_rows = max(10, len(batter_data), len(bowler_data))
 with st.sidebar:
@@ -483,7 +657,7 @@ with st.sidebar:
         "Rows in ranking tables and bowler charts",
         min_value=10,
         max_value=maximum_rows,
-        value=10,
+        value=min(10, maximum_rows),
         step=1,
     )
 
@@ -506,8 +680,8 @@ with st.sidebar:
 top_batters = batter_data.head(10)
 top_bowlers = bowler_data.head(10)
 
-ipl_batters, ipl_bowlers = rankings_by_format["IPL"]
-t20i_batters, t20i_bowlers = rankings_by_format["T20I"]
+ipl_batters, ipl_bowlers = get_rankings(str(ROOT), "IPL", 2, 16, 25, 3)
+t20i_batters, t20i_bowlers = get_rankings(str(ROOT), "T20I", 2, 16, 25, 3)
 batter_overlap = len(set(ipl_batters.head(10)["name"]) & set(t20i_batters.head(10)["name"]))
 bowler_overlap = len(set(ipl_bowlers.head(10)["bowler_name"]) & set(t20i_bowlers.head(10)["bowler_name"]))
 
@@ -518,8 +692,8 @@ st.info(
 # ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
-overview_tab, batting_tab, bowling_tab, comparison_tab, novelty_tab, methodology_tab = st.tabs(
-    ["Overview", "Batting", "Bowling", "Compare Players", "Novelty & Method", "Methodology & reliability"]
+overview_tab, batting_tab, bowling_tab, drilldown_tab, comparison_tab, novelty_tab, methodology_tab = st.tabs(
+    ["Overview", "Batting", "Bowling", "Player Drill-down", "Compare Players", "Novelty & Method", "Methodology & reliability"]
 )
 
 with overview_tab:
@@ -601,49 +775,229 @@ with overview_tab:
         mime="text/csv",
     )
 
+# ---------------------------------------------------------------------------
+# Bootstrap CI for displayed players (cached per player)
+# ---------------------------------------------------------------------------
+def _merge_batter_ci(frame: pd.DataFrame, max_players: int) -> pd.DataFrame:
+    ci_rows = []
+    for _, row in frame.head(max_players).iterrows():
+        ci = _batter_ci_cached(
+            str(ROOT), selected_format, row["player_id"], row["name"], "base",
+        )
+        ci_rows.append({
+            "survival_delta_ci_low": ci.get("survival_delta_ci", (np.nan, np.nan))[0],
+            "survival_delta_ci_high": ci.get("survival_delta_ci", (np.nan, np.nan))[1],
+            "boundary_delta_ci_low": ci.get("boundary_delta_ci", (np.nan, np.nan))[0],
+            "boundary_delta_ci_high": ci.get("boundary_delta_ci", (np.nan, np.nan))[1],
+        })
+    ci_df = pd.DataFrame(ci_rows, index=frame.head(max_players).index)
+    result = frame.copy()
+    for col in ci_df.columns:
+        result.loc[ci_df.index, col] = ci_df[col]
+    return result
+
+batter_data_ci = _merge_batter_ci(batter_data, maximum_rows)
+
 with batting_tab:
     st.subheader(f"{selected_format} batting performance")
     st.markdown(
         "The scatterplot compares each eligible batter’s pressure-minus-ordinary survival and boundary-rate changes. "
         "The highlighted labels are the reported top ten."
     )
-    st.plotly_chart(batter_figure(batter_data), width="stretch")
-    st.markdown(f"#### Ranked batters (showing {min(display_rows, len(batter_data))} of {len(batter_data)})")
+    st.plotly_chart(batter_figure(batter_data_ci), width="stretch")
+    st.markdown(f"#### Ranked batters (showing {min(display_rows, len(batter_data_ci))} of {len(batter_data_ci)})")
     st.dataframe(
-        make_batter_table(batter_data.head(display_rows)).style.format(
+        make_batter_table(batter_data_ci.head(display_rows)).style.format(
             {
                 "Survival ordinary (%)": ".2f",
                 "Survival pressure (%)": ".2f",
                 "Survival change (pp)": "+.2f",
+                "Survival CI low (pp)": "+.2f",
+                "Survival CI high (pp)": "+.2f",
                 "Boundary ordinary (%)": ".2f",
                 "Boundary pressure (%)": ".2f",
                 "Boundary change (pp)": "+.2f",
+                "Boundary CI low (pp)": "+.2f",
+                "Boundary CI high (pp)": "+.2f",
             }
         ),
         hide_index=True,
         width="stretch",
     )
 
+def _merge_bowler_ci(frame: pd.DataFrame, max_players: int) -> pd.DataFrame:
+    ci_rows = []
+    for _, row in frame.head(max_players).iterrows():
+        ci = _bowler_ci_cached(
+            str(ROOT), selected_format, row["bowler_id"], row["bowler_name"], partner_threshold,
+        )
+        ci_rows.append({
+            "delta_per_100_ci_low": ci.get("delta_per_100_ci", (np.nan, np.nan))[0],
+            "delta_per_100_ci_high": ci.get("delta_per_100_ci", (np.nan, np.nan))[1],
+        })
+    ci_df = pd.DataFrame(ci_rows, index=frame.head(max_players).index)
+    result = frame.copy()
+    for col in ci_df.columns:
+        result.loc[ci_df.index, col] = ci_df[col]
+    return result
+
+bowler_data_ci = _merge_bowler_ci(bowler_data, maximum_rows)
+
 with bowling_tab:
     st.subheader(f"{selected_format} bowling performance")
     st.markdown(
         "The differential chart ranks credited wickets per 100 event rows; the paired bars compare ordinary and pressure rates."
     )
-    differential_figure, rate_figure = bowler_figures(bowler_data, display_rows)
+    differential_figure, rate_figure = bowler_figures(bowler_data_ci, display_rows)
     st.plotly_chart(differential_figure, width="stretch")
     st.plotly_chart(rate_figure, width="stretch")
-    st.markdown(f"#### Ranked bowlers (showing {min(display_rows, len(bowler_data))} of {len(bowler_data)})")
+    st.markdown(f"#### Ranked bowlers (showing {min(display_rows, len(bowler_data_ci))} of {len(bowler_data_ci)})")
     st.dataframe(
-        make_bowler_table(bowler_data.head(display_rows)).style.format(
+        make_bowler_table(bowler_data_ci.head(display_rows)).style.format(
             {
                 "Ordinary rate (/100 rows)": ".2f",
                 "Pressure rate (/100 rows)": ".2f",
                 "Change (/100 rows)": "+.2f",
+                "CI low (/100 rows)": "+.2f",
+                "CI high (/100 rows)": "+.2f",
             }
         ),
         hide_index=True,
         width="stretch",
     )
+
+    st.markdown("#### Per-phase credited-wicket rates (top bowlers)")
+    phase_rows = []
+    deliveries = get_deliveries(str(ROOT))
+    for _, row in bowler_data_ci.head(min(10, len(bowler_data_ci))).iterrows():
+        phase_df = bowler_phase_breakdown(
+            deliveries, selected_format, row["bowler_id"], partner_threshold,
+        )
+        if phase_df.empty:
+            continue
+        for _, prow in phase_df.iterrows():
+            phase_rows.append({
+                "Bowler": row["bowler_name"],
+                "Phase": prow["phase"],
+                "Ordinary rate (/100)": f"{prow['ordinary_rate_per_100']:.2f}",
+                "Pressure rate (/100)": f"{prow['pressure_rate_per_100']:.2f}",
+                "Delta (/100)": f"{prow['delta_per_100']:+.2f}",
+            })
+    if phase_rows:
+        st.dataframe(
+            pd.DataFrame(phase_rows),
+            hide_index=True,
+            width="stretch",
+        )
+        st.caption("Credited wickets per 100 delivery rows, split by over phase (Powerplay / Middle / Death).")
+
+with drilldown_tab:
+    st.subheader("Individual Player Drill-down")
+    st.markdown(
+        "Select a player to see their match-level pressure provenance — which matches contributed "
+        "pressure rows, and how many deliveries/wickets came from those matches."
+    )
+
+    drill_role = st.selectbox("Role", ["Batter", "Bowler"], key="drill_role")
+    if drill_role == "Batter":
+        drill_player = st.selectbox("Player", batter_data["name"].tolist(), key="drill_batter")
+        if drill_player:
+            row = batter_data[batter_data["name"] == drill_player].iloc[0]
+            st.markdown(f"### {drill_player} (Rank {int(row['rank'])})")
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Pressure rows", f"{int(row['pressure_deliveries']):,}")
+            c2.metric("Pressure matches", f"{int(row['pressure_matches'])}")
+            c3.metric("Survival Δ (pp)", f"{row['survival_delta']*100:+.2f}")
+            c4.metric("Boundary Δ (pp)", f"{row['boundary_delta']*100:+.2f}")
+            if rr_team_id is not None and row["is_rr"]:
+                st.success("★ Rajasthan Royals player")
+
+            prov = batter_match_provenance(
+                get_deliveries(str(ROOT)), selected_format, row["player_id"],
+            )
+            if not prov.empty:
+                st.markdown("#### Match-level pressure provenance (batter)")
+                prov_display = prov.copy()
+                prov_display["match_id"] = prov_display["match_id"].astype(str)
+                st.dataframe(
+                    prov_display.style.format({
+                        "pressure_deliveries": "{:,.0f}",
+                        "pressure_survived": "{:,.0f}",
+                        "pressure_boundaries": "{:,.0f}",
+                    }),
+                    hide_index=True,
+                    width="stretch",
+                )
+                st.caption("Matches where this batter faced pressure-state deliveries.")
+            else:
+                st.info("No pressure-match provenance available.")
+    else:
+        drill_player = st.selectbox("Player", bowler_data["bowler_name"].tolist(), key="drill_bowler")
+        if drill_player:
+            row = bowler_data[bowler_data["bowler_name"] == drill_player].iloc[0]
+            st.markdown(f"### {drill_player} (Rank {int(row['rank'])})")
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Pressure rows", f"{int(row['pressure_deliveries']):,}")
+            c2.metric("Pressure matches", f"{int(row['pressure_matches'])}")
+            c3.metric("Pressure wickets", f"{int(row['pressure_wickets'])}")
+            c4.metric("Δ per 100 rows", f"{row['delta_per_100']:+.2f}")
+            if rr_team_id is not None and row["is_rr"]:
+                st.success("★ Rajasthan Royals player")
+
+            prov = bowler_match_provenance(
+                get_deliveries(str(ROOT)), selected_format, row["bowler_id"], partner_threshold,
+            )
+            if not prov.empty:
+                st.markdown("#### Match-level pressure provenance (bowler)")
+                prov_display = prov.copy()
+                prov_display["match_id"] = prov_display["match_id"].astype(str)
+                st.dataframe(
+                    prov_display.style.format({
+                        "pressure_deliveries": "{:,.0f}",
+                        "pressure_wickets": "{:,.0f}",
+                    }),
+                    hide_index=True,
+                    width="stretch",
+                )
+                st.caption("Matches where this bowler bowled pressure-state deliveries.")
+
+            phase_df = bowler_phase_breakdown(
+                get_deliveries(str(ROOT)), selected_format, row["bowler_id"], partner_threshold,
+            )
+            if not phase_df.empty:
+                st.markdown("#### Per-phase credited-wicket rates")
+                st.dataframe(
+                    phase_df.style.format({
+                        "ordinary_rate_per_100": "{:.2f}",
+                        "pressure_rate_per_100": "{:.2f}",
+                        "delta_per_100": "{:+.2f}",
+                    }),
+                    hide_index=True,
+                    width="stretch",
+                )
+
+            # Export individual player summary
+            player_summary = pd.DataFrame([{
+                "player": drill_player,
+                "role": drill_role,
+                "rank": int(row["rank"]),
+                "pressure_deliveries": int(row["pressure_deliveries"]),
+                "pressure_matches": int(row["pressure_matches"]),
+                "is_rr": bool(row["is_rr"]),
+            }])
+            if drill_role == "Batter":
+                player_summary["survival_delta_pp"] = row["survival_delta"] * 100
+                player_summary["boundary_delta_pp"] = row["boundary_delta"] * 100
+            else:
+                player_summary["pressure_wickets"] = int(row["pressure_wickets"])
+                player_summary["delta_per_100_rows"] = row["delta_per_100"]
+            st.download_button(
+                "Download player summary CSV",
+                data=player_summary.to_csv(index=False).encode("utf-8"),
+                file_name=f"{drill_player.replace(' ', '_')}_summary.csv",
+                mime="text/csv",
+                key=f"export_{drill_player}",
+            )
 
 with comparison_tab:
     st.subheader("Head-to-Head Player Comparison")
@@ -651,88 +1005,183 @@ with comparison_tab:
         "Select any two eligible players to compare their pressure-versus-ordinary metrics side by side."
     )
 
-    comp_col1, comp_col2 = st.columns(2)
-    with comp_col1:
-        player_a = st.selectbox("Player A", batter_data["name"].tolist(), key="comp_a")
-    with comp_col2:
-        player_b = st.selectbox("Player B", batter_data["name"].tolist(), key="comp_b")
+    comp_role = st.selectbox("Role", ["Batter", "Bowler"], key="comp_role")
 
-    if player_a and player_b:
-        row_a = batter_data[batter_data["name"] == player_a].iloc[0]
-        row_b = batter_data[batter_data["name"] == player_b].iloc[0]
+    if comp_role == "Batter":
+        comp_col1, comp_col2 = st.columns(2)
+        with comp_col1:
+            player_a = st.selectbox("Player A", batter_data["name"].tolist(), key="comp_a")
+        with comp_col2:
+            player_b = st.selectbox("Player B", batter_data["name"].tolist(), key="comp_b")
 
-        # Comparison metrics radar
-        categories = ["Survival Δ (pp)", "Boundary Δ (pp)", "Pressure Deliveries", "Pressure Matches"]
-        values_a = [
-            row_a["survival_delta"] * 100,
-            row_a["boundary_delta"] * 100,
-            min(row_a["pressure_deliveries"] / max(batter_data["pressure_deliveries"].max(), 1) * 100, 100),
-            min(row_a["pressure_matches"] / max(batter_data["pressure_matches"].max(), 1) * 100, 100),
-        ]
-        values_b = [
-            row_b["survival_delta"] * 100,
-            row_b["boundary_delta"] * 100,
-            min(row_b["pressure_deliveries"] / max(batter_data["pressure_deliveries"].max(), 1) * 100, 100),
-            min(row_b["pressure_matches"] / max(batter_data["pressure_matches"].max(), 1) * 100, 100),
-        ]
+        if player_a and player_b:
+            row_a = batter_data[batter_data["name"] == player_a].iloc[0]
+            row_b = batter_data[batter_data["name"] == player_b].iloc[0]
 
-        fig_comp = go.Figure()
-        fig_comp.add_trace(go.Scatterpolar(
-            r=values_a + [values_a[0]],
-            theta=categories + [categories[0]],
-            fill="toself",
-            name=player_a,
-            line=dict(color="#fbbf24", width=3),
-            fillcolor="rgba(251, 191, 36, 0.25)",
-        ))
-        fig_comp.add_trace(go.Scatterpolar(
-            r=values_b + [values_b[0]],
-            theta=categories + [categories[0]],
-            fill="toself",
-            name=player_b,
-            line=dict(color="#38bdf8", width=3),
-            fillcolor="rgba(56, 189, 248, 0.25)",
-        ))
-        fig_comp.update_layout(
-            polar=dict(
-                radialaxis=dict(visible=True, range=[0, 100], gridcolor="#334155"),
-                angularaxis=dict(gridcolor="#334155"),
-                bgcolor="#0f172a",
-            ),
-            paper_bgcolor="#0f172a",
-            plot_bgcolor="#0f172a",
-            font=dict(color="#ffffff", size=11),
-            legend=dict(bgcolor="#0f172a", font=dict(color="#cbd5e1")),
-            height=450,
-            margin=dict(l=60, r=60, t=40, b=40),
-        )
-        st.plotly_chart(fig_comp, width="stretch")
+            # Comparison metrics radar
+            categories = ["Survival Δ (pp)", "Boundary Δ (pp)", "Pressure Deliveries", "Pressure Matches"]
+            values_a = [
+                row_a["survival_delta"] * 100,
+                row_a["boundary_delta"] * 100,
+                min(row_a["pressure_deliveries"] / max(batter_data["pressure_deliveries"].max(), 1) * 100, 100),
+                min(row_a["pressure_matches"] / max(batter_data["pressure_matches"].max(), 1) * 100, 100),
+            ]
+            values_b = [
+                row_b["survival_delta"] * 100,
+                row_b["boundary_delta"] * 100,
+                min(row_b["pressure_deliveries"] / max(batter_data["pressure_deliveries"].max(), 1) * 100, 100),
+                min(row_b["pressure_matches"] / max(batter_data["pressure_matches"].max(), 1) * 100, 100),
+            ]
 
-        # Side-by-side metrics table (all values as strings for Arrow compatibility)
-        comp_table = pd.DataFrame({
-            "Metric": [
-                "Rank", "Pressure rows", "Pressure matches", "Survival ordinary (%)",
-                "Survival pressure (%)", "Survival Δ (pp)", "Boundary ordinary (%)",
-                "Boundary pressure (%)", "Boundary Δ (pp)",
-            ],
-            player_a: [
-                str(int(row_a["rank"])), str(int(row_a["pressure_deliveries"])), str(int(row_a["pressure_matches"])),
-                f"{row_a['survival_ordinary']*100:.2f}", f"{row_a['survival_pressure']*100:.2f}",
-                f"{row_a['survival_delta']*100:+.2f}", f"{row_a['boundary_ordinary']*100:.2f}",
-                f"{row_a['boundary_pressure']*100:.2f}", f"{row_a['boundary_delta']*100:+.2f}",
-            ],
-            player_b: [
-                str(int(row_b["rank"])), str(int(row_b["pressure_deliveries"])), str(int(row_b["pressure_matches"])),
-                f"{row_b['survival_ordinary']*100:.2f}", f"{row_b['survival_pressure']*100:.2f}",
-                f"{row_b['survival_delta']*100:+.2f}", f"{row_b['boundary_ordinary']*100:.2f}",
-                f"{row_b['boundary_pressure']*100:.2f}", f"{row_b['boundary_delta']*100:+.2f}",
-            ],
-        })
-        st.dataframe(
-            comp_table.style.set_properties(**{"background-color": "#0f172a", "color": "#ffffff"}),
-            hide_index=True,
-            width="stretch",
-        )
+            fig_comp = go.Figure()
+            fig_comp.add_trace(go.Scatterpolar(
+                r=values_a + [values_a[0]],
+                theta=categories + [categories[0]],
+                fill="toself",
+                name=player_a,
+                line=dict(color="#fbbf24", width=3),
+                fillcolor="rgba(251, 191, 36, 0.25)",
+            ))
+            fig_comp.add_trace(go.Scatterpolar(
+                r=values_b + [values_b[0]],
+                theta=categories + [categories[0]],
+                fill="toself",
+                name=player_b,
+                line=dict(color="#38bdf8", width=3),
+                fillcolor="rgba(56, 189, 248, 0.25)",
+            ))
+            fig_comp.update_layout(
+                polar=dict(
+                    radialaxis=dict(visible=True, range=[0, 100], gridcolor="#334155"),
+                    angularaxis=dict(gridcolor="#334155"),
+                    bgcolor="#0f172a",
+                ),
+                paper_bgcolor="#0f172a",
+                plot_bgcolor="#0f172a",
+                font=dict(color="#ffffff", size=11),
+                legend=dict(bgcolor="#0f172a", font=dict(color="#cbd5e1")),
+                height=450,
+                margin=dict(l=60, r=60, t=40, b=40),
+            )
+            st.plotly_chart(fig_comp, width="stretch")
+
+            # Side-by-side metrics table (all values as strings for Arrow compatibility)
+            comp_table = pd.DataFrame({
+                "Metric": [
+                    "Rank", "Pressure rows", "Pressure matches", "Survival ordinary (%)",
+                    "Survival pressure (%)", "Survival Δ (pp)", "Boundary ordinary (%)",
+                    "Boundary pressure (%)", "Boundary Δ (pp)",
+                ],
+                player_a: [
+                    str(int(row_a["rank"])), str(int(row_a["pressure_deliveries"])), str(int(row_a["pressure_matches"])),
+                    f"{row_a['survival_ordinary']*100:.2f}", f"{row_a['survival_pressure']*100:.2f}",
+                    f"{row_a['survival_delta']*100:+.2f}", f"{row_a['boundary_ordinary']*100:.2f}",
+                    f"{row_a['boundary_pressure']*100:.2f}", f"{row_a['boundary_delta']*100:+.2f}",
+                ],
+                player_b: [
+                    str(int(row_b["rank"])), str(int(row_b["pressure_deliveries"])), str(int(row_b["pressure_matches"])),
+                    f"{row_b['survival_ordinary']*100:.2f}", f"{row_b['survival_pressure']*100:.2f}",
+                    f"{row_b['survival_delta']*100:+.2f}", f"{row_b['boundary_ordinary']*100:.2f}",
+                    f"{row_b['boundary_pressure']*100:.2f}", f"{row_b['boundary_delta']*100:+.2f}",
+                ],
+            })
+            st.dataframe(
+                comp_table.style.set_properties(**{"background-color": "#0f172a", "color": "#ffffff"}),
+                hide_index=True,
+                width="stretch",
+            )
+
+    else:  # Bowler
+        comp_col1, comp_col2 = st.columns(2)
+        with comp_col1:
+            player_a = st.selectbox("Player A", bowler_data["bowler_name"].tolist(), key="bowl_comp_a")
+        with comp_col2:
+            player_b = st.selectbox("Player B", bowler_data["bowler_name"].tolist(), key="bowl_comp_b")
+
+        if player_a and player_b:
+            row_a = bowler_data[bowler_data["bowler_name"] == player_a].iloc[0]
+            row_b = bowler_data[bowler_data["bowler_name"] == player_b].iloc[0]
+
+            # Comparison metrics radar
+            categories = ["Change (/100 rows)", "Pressure rate (/100)", "Pressure wickets", "Pressure matches"]
+            max_delta = max(bowler_data["delta_per_100"].max(), abs(bowler_data["delta_per_100"].min()), 1)
+            max_rate = max(bowler_data["pressure_wickets_per_100"].max(), 1)
+            max_wickets = max(bowler_data["pressure_wickets"].max(), 1)
+            max_matches = max(bowler_data["pressure_matches"].max(), 1)
+            values_a = [
+                min(max(row_a["delta_per_100"], 0) / max_delta * 100, 100),
+                min(row_a["pressure_wickets_per_100"] / max_rate * 100, 100),
+                min(row_a["pressure_wickets"] / max_wickets * 100, 100),
+                min(row_a["pressure_matches"] / max_matches * 100, 100),
+            ]
+            values_b = [
+                min(max(row_b["delta_per_100"], 0) / max_delta * 100, 100),
+                min(row_b["pressure_wickets_per_100"] / max_rate * 100, 100),
+                min(row_b["pressure_wickets"] / max_wickets * 100, 100),
+                min(row_b["pressure_matches"] / max_matches * 100, 100),
+            ]
+
+            fig_comp = go.Figure()
+            fig_comp.add_trace(go.Scatterpolar(
+                r=values_a + [values_a[0]],
+                theta=categories + [categories[0]],
+                fill="toself",
+                name=player_a,
+                line=dict(color="#fbbf24", width=3),
+                fillcolor="rgba(251, 191, 36, 0.25)",
+            ))
+            fig_comp.add_trace(go.Scatterpolar(
+                r=values_b + [values_b[0]],
+                theta=categories + [categories[0]],
+                fill="toself",
+                name=player_b,
+                line=dict(color="#38bdf8", width=3),
+                fillcolor="rgba(56, 189, 248, 0.25)",
+            ))
+            fig_comp.update_layout(
+                polar=dict(
+                    radialaxis=dict(visible=True, range=[0, 100], gridcolor="#334155"),
+                    angularaxis=dict(gridcolor="#334155"),
+                    bgcolor="#0f172a",
+                ),
+                paper_bgcolor="#0f172a",
+                plot_bgcolor="#0f172a",
+                font=dict(color="#ffffff", size=11),
+                legend=dict(bgcolor="#0f172a", font=dict(color="#cbd5e1")),
+                height=450,
+                margin=dict(l=60, r=60, t=40, b=40),
+            )
+            st.plotly_chart(fig_comp, width="stretch")
+
+            # Side-by-side metrics table
+            comp_table = pd.DataFrame({
+                "Metric": [
+                    "Rank", "Pressure rows", "Pressure matches", "Pressure wickets",
+                    "Ordinary rate (/100 rows)", "Pressure rate (/100 rows)",
+                    "Change (/100 rows)", "CI low (/100 rows)", "CI high (/100 rows)",
+                ],
+                player_a: [
+                    str(int(row_a["rank"])), str(int(row_a["pressure_deliveries"])), str(int(row_a["pressure_matches"])),
+                    str(int(row_a["pressure_wickets"])),
+                    f"{row_a['ordinary_wickets_per_100']:.2f}", f"{row_a['pressure_wickets_per_100']:.2f}",
+                    f"{row_a['delta_per_100']:+.2f}",
+                    f"{row_a.get('delta_per_100_ci_low', row_a['delta_per_100']):+.2f}",
+                    f"{row_a.get('delta_per_100_ci_high', row_a['delta_per_100']):+.2f}",
+                ],
+                player_b: [
+                    str(int(row_b["rank"])), str(int(row_b["pressure_deliveries"])), str(int(row_b["pressure_matches"])),
+                    str(int(row_b["pressure_wickets"])),
+                    f"{row_b['ordinary_wickets_per_100']:.2f}", f"{row_b['pressure_wickets_per_100']:.2f}",
+                    f"{row_b['delta_per_100']:+.2f}",
+                    f"{row_b.get('delta_per_100_ci_low', row_b['delta_per_100']):+.2f}",
+                    f"{row_b.get('delta_per_100_ci_high', row_b['delta_per_100']):+.2f}",
+                ],
+            })
+            st.dataframe(
+                comp_table.style.set_properties(**{"background-color": "#0f172a", "color": "#ffffff"}),
+                hide_index=True,
+                width="stretch",
+            )
 
 with novelty_tab:
     st.subheader("Novelty & Methodological Contribution")
