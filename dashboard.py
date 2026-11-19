@@ -99,7 +99,11 @@ def _batter_provenance_cached(
     balls, _, match_info = load_data(data_dir)
     deliveries = prepare_deliveries(balls, match_info)
     scoped = deliveries[deliveries["format_group"].eq(format_group)].copy()
-    return batter_match_provenance(scoped, format_group, player_id)
+    if pressure_mask_hash == "base":
+        pressure_mask = scoped["pressure_batting"]
+    else:
+        pressure_mask = scoped["pressure_batting"]
+    return batter_match_provenance(scoped, format_group, pressure_mask, player_id)
 
 
 @st.cache_data(show_spinner=False)
@@ -110,7 +114,7 @@ def _bowler_provenance_cached(
     balls, _, match_info = load_data(data_dir)
     deliveries = prepare_deliveries(balls, match_info)
     scoped = deliveries[deliveries["format_group"].eq(format_group)].copy()
-    return bowler_match_provenance(scoped, format_group, bowler_id, partner_threshold)
+    return bowler_match_provenance(scoped, format_group, partner_threshold, bowler_id)
 
 
 @st.cache_data(show_spinner=False)
@@ -321,18 +325,16 @@ def batter_figure(frame: pd.DataFrame, show_ci: bool = False) -> go.Figure:
         },
     )
     if show_ci:
-        chart["surv_err_plus"] = (
-            chart.get("survival_delta_ci_high", chart["survival_delta"]) * 100 - chart["survival_delta_pp"]
-        )
-        chart["surv_err_minus"] = (
-            chart["survival_delta_pp"] - chart.get("survival_delta_ci_low", chart["survival_delta"]) * 100
-        )
-        chart["bound_err_plus"] = (
-            chart.get("boundary_delta_ci_high", chart["boundary_delta"]) * 100 - chart["boundary_delta_pp"]
-        )
-        chart["bound_err_minus"] = (
-            chart["boundary_delta_pp"] - chart.get("boundary_delta_ci_low", chart["boundary_delta"]) * 100
-        )
+        ci_low_s = chart.get("survival_delta_ci_low", pd.Series([np.nan] * len(chart)))
+        ci_high_s = chart.get("survival_delta_ci_high", pd.Series([np.nan] * len(chart)))
+        ci_low_b = chart.get("boundary_delta_ci_low", pd.Series([np.nan] * len(chart)))
+        ci_high_b = chart.get("boundary_delta_ci_high", pd.Series([np.nan] * len(chart)))
+
+        chart["surv_err_plus"] = (ci_high_s.fillna(chart["survival_delta"]) * 100 - chart["survival_delta_pp"]).fillna(0)
+        chart["surv_err_minus"] = (chart["survival_delta_pp"] - ci_low_s.fillna(chart["survival_delta"]) * 100).fillna(0)
+        chart["bound_err_plus"] = (ci_high_b.fillna(chart["boundary_delta"]) * 100 - chart["boundary_delta_pp"]).fillna(0)
+        chart["bound_err_minus"] = (chart["boundary_delta_pp"] - ci_low_b.fillna(chart["boundary_delta"]) * 100).fillna(0)
+
         scatter_kwargs["error_x"] = {
             "array": chart["surv_err_plus"],
             "arrayminus": chart["surv_err_minus"],
@@ -375,9 +377,11 @@ def bowler_figures(frame: pd.DataFrame, display_rows: int, show_ci: bool = False
         },
     )
     if show_ci:
+        ci_high = ordered.get("delta_per_100_ci_high", pd.Series([np.nan] * len(ordered)))
+        ci_low = ordered.get("delta_per_100_ci_low", pd.Series([np.nan] * len(ordered)))
         bar_kwargs["error_x"] = {
-            "array": ordered.get("delta_per_100_ci_high", ordered["delta_per_100"]) - ordered["delta_per_100"],
-            "arrayminus": ordered["delta_per_100"] - ordered.get("delta_per_100_ci_low", ordered["delta_per_100"]),
+            "array": (ci_high.fillna(ordered["delta_per_100"]) - ordered["delta_per_100"]).fillna(0),
+            "arrayminus": (ordered["delta_per_100"] - ci_low.fillna(ordered["delta_per_100"])).fillna(0),
         }
     differential = px.bar(
         ordered,
