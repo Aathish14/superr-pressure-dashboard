@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import base64
 
 import pandas as pd
 import plotly.express as px
@@ -13,6 +14,19 @@ from pressure_proxy import analyze_all
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT
 FORMAT_NAMES = ("IPL", "T20I")
+
+
+def load_image_b64(filename: str) -> str:
+    """Load an image file and return a base64 data URI."""
+    path = ROOT / filename
+    if not path.exists():
+        return ""
+    data = path.read_bytes()
+    return f"data:image/png;base64,{base64.b64encode(data).decode()}"
+
+
+RR_LOGO_B64 = load_image_b64("Rajasthan-Royals-Logo-768x432.png")
+IPL_LOGO_B64 = load_image_b64("ipl-logo.png")
 
 st.set_page_config(
     page_title="T20 Pressure Performance",
@@ -400,14 +414,14 @@ def methodology_flow_figure() -> go.Figure:
 
 
 st.markdown(
-    """
+    f"""
     <div class="luxury-header">
-        <img src="Rajasthan-Royals-Logo-768x432.png" class="rr-logo" alt="RR Logo">
+        <img src="{RR_LOGO_B64}" class="rr-logo" alt="RR Logo">
         <div class="header-text">
             <h1>T20 Pressure Performance Dashboard <span class="rr-badge">RAJASTHAN ROYALS</span></h1>
             <div class="subtitle">Pressure-Proxy Scouting System · IPL &amp; T20I · Rajasthan Royals Analytics</div>
         </div>
-        <img src="ipl-logo.png" class="ipl-logo" alt="IPL Logo">
+        <img src="{IPL_LOGO_B64}" class="ipl-logo" alt="IPL Logo">
     </div>
     """,
     unsafe_allow_html=True,
