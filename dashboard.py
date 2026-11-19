@@ -25,8 +25,8 @@ def load_image_b64(filename: str) -> str:
     return f"data:image/png;base64,{base64.b64encode(data).decode()}"
 
 
-RR_LOGO_B64 = load_image_b64("Rajasthan-Royals-Logo-768x432.png")
-IPL_LOGO_B64 = load_image_b64("ipl-logo.png")
+RR_LOGO_B64 = load_image_b64("images/Rajasthan-Royals-Logo-768x432.png")
+IPL_LOGO_B64 = load_image_b64("images/ipl-logo.png")
 
 st.set_page_config(
     page_title="T20 Pressure Performance",

@@ -16,6 +16,8 @@
 !submission_report/*.pdf
 !Rajasthan-Royals-Logo-768x432.png
 !ipl-logo.png
+!images/
+!images/*.png
 
 # Explicitly never publish (redundant with * above, but clear)
 AGENTS.md
