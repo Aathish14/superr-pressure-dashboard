@@ -24,8 +24,26 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    .block-container {padding-top: 2rem; padding-bottom: 2.5rem; max-width: 1500px;}
-    h1, h2, h3 {color: #183b56;}
+    .block-container {padding-top: 1.5rem; padding-bottom: 2.5rem; max-width: 1600px;}
+    h1, h2, h3 {color: #ffffff;}
+    .stMetric {background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        border: 1px solid #334155; padding: 1rem 1.25rem; border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);}
+    .stMetric [data-testid="stMetricValue"] {color: #fbbf24 !important; font-size: 1.75rem;}
+    .stMetric [data-testid="stMetricLabel"] {color: #94a3b8 !important;}
+    .luxury-header {background: linear-gradient(90deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
+        border: 1px solid #4f46e5; border-radius: 12px; padding: 1.5rem 2rem;
+        margin-bottom: 2rem; box-shadow: 0 8px 24px rgba(30, 41, 59, 0.4);}
+    .luxury-header h1 {color: #fbbf24; margin: 0; font-size: 2rem; letter-spacing: 2px;}
+    .luxury-header .subtitle {color: #cbd5e1; margin-top: 0.25rem; font-size: 0.95rem;
+        letter-spacing: 1px; text-transform: uppercase;}
+    .rr-badge {display: inline-block; background: #fbbf24; color: #1e1b4b;
+        font-weight: 700; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;
+        margin-left: 8px; letter-spacing: 1px;}
+    .tab-card {background: #0f172a; border: 1px solid #334155; border-radius: 10px;
+        padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3);}
+    .section-title {color: #fbbf24; font-size: 1.25rem; font-weight: 600;
+        margin-bottom: 1rem; letter-spacing: 0.5px; text-transform: uppercase;}
     </style>
     """,
     unsafe_allow_html=True,
@@ -376,7 +394,15 @@ def methodology_flow_figure() -> go.Figure:
     return fig
 
 
-st.title("T20 Pressure Performance Dashboard")
+st.markdown(
+    """
+    <div class="luxury-header">
+        <h1>🏏 T20 Pressure Performance Dashboard <span class="rr-badge">RAJASTHAN ROYALS</span></h1>
+        <div class="subtitle">Pressure-Proxy Scouting System · IPL &amp; T20I · Rajasthan Royals Analytics</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 st.markdown(
     f"🔗 **Source code:** [Aathish14/superr-pressure-dashboard](https://github.com/Aathish14/superr-pressure-dashboard) "
     f"(GitHub repository)"
@@ -439,6 +465,22 @@ with st.sidebar:
         step=1,
     )
 
+    st.markdown("---")
+    st.markdown("### 👑 RR Scout View")
+    rr_mode = st.toggle("Show RR scout targets only", value=False)
+    if rr_mode:
+        st.caption("High pressure-delivery players with positive deltas — prime auction targets.")
+        rr_min_deliveries = st.slider("Min pressure deliveries", 30, 200, 50)
+        batter_data = batter_data[
+            (batter_data["pressure_deliveries"] >= rr_min_deliveries) &
+            (batter_data["survival_delta"] > 0) &
+            (batter_data["boundary_delta"] > 0)
+        ]
+        bowler_data = bowler_data[
+            (bowler_data["pressure_deliveries"] >= rr_min_deliveries) &
+            (bowler_data["delta_per_100"] > 0)
+        ]
+
 top_batters = batter_data.head(10)
 top_bowlers = bowler_data.head(10)
 
@@ -454,8 +496,8 @@ st.info(
 # ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
-overview_tab, batting_tab, bowling_tab, methodology_tab = st.tabs(
-    ["Overview", "Batting", "Bowling", "Methodology & reliability"]
+overview_tab, batting_tab, bowling_tab, comparison_tab, methodology_tab = st.tabs(
+    ["Overview", "Batting", "Bowling", "Compare Players", "Methodology & reliability"]
 )
 
 with overview_tab:
@@ -581,8 +623,96 @@ with bowling_tab:
         width="stretch",
     )
 
+with comparison_tab:
+    st.subheader("Head-to-Head Player Comparison")
+    st.markdown(
+        "Select any two eligible players to compare their pressure-versus-ordinary metrics side by side."
+    )
+
+    comp_col1, comp_col2 = st.columns(2)
+    with comp_col1:
+        player_a = st.selectbox("Player A", batter_data["name"].tolist(), key="comp_a")
+    with comp_col2:
+        player_b = st.selectbox("Player B", batter_data["name"].tolist(), key="comp_b")
+
+    if player_a and player_b:
+        row_a = batter_data[batter_data["name"] == player_a].iloc[0]
+        row_b = batter_data[batter_data["name"] == player_b].iloc[0]
+
+        # Comparison metrics radar
+        categories = ["Survival Δ (pp)", "Boundary Δ (pp)", "Pressure Deliveries", "Pressure Matches"]
+        values_a = [
+            row_a["survival_delta"] * 100,
+            row_a["boundary_delta"] * 100,
+            min(row_a["pressure_deliveries"] / max(batter_data["pressure_deliveries"].max(), 1) * 100, 100),
+            min(row_a["pressure_matches"] / max(batter_data["pressure_matches"].max(), 1) * 100, 100),
+        ]
+        values_b = [
+            row_b["survival_delta"] * 100,
+            row_b["boundary_delta"] * 100,
+            min(row_b["pressure_deliveries"] / max(batter_data["pressure_deliveries"].max(), 1) * 100, 100),
+            min(row_b["pressure_matches"] / max(batter_data["pressure_matches"].max(), 1) * 100, 100),
+        ]
+
+        fig_comp = go.Figure()
+        fig_comp.add_trace(go.Scatterpolar(
+            r=values_a + [values_a[0]],
+            theta=categories + [categories[0]],
+            fill="toself",
+            name=player_a,
+            line=dict(color="#fbbf24", width=3),
+            fillcolor="rgba(251, 191, 36, 0.25)",
+        ))
+        fig_comp.add_trace(go.Scatterpolar(
+            r=values_b + [values_b[0]],
+            theta=categories + [categories[0]],
+            fill="toself",
+            name=player_b,
+            line=dict(color="#38bdf8", width=3),
+            fillcolor="rgba(56, 189, 248, 0.25)",
+        ))
+        fig_comp.update_layout(
+            polar=dict(
+                radialaxis=dict(visible=True, range=[0, 100], gridcolor="#334155"),
+                angularaxis=dict(gridcolor="#334155"),
+                bgcolor="#0f172a",
+            ),
+            paper_bgcolor="#0f172a",
+            plot_bgcolor="#0f172a",
+            font=dict(color="#ffffff", size=11),
+            legend=dict(bgcolor="#0f172a", font=dict(color="#cbd5e1")),
+            height=450,
+            margin=dict(l=60, r=60, t=40, b=40),
+        )
+        st.plotly_chart(fig_comp, width="stretch")
+
+        # Side-by-side metrics table
+        comp_table = pd.DataFrame({
+            "Metric": [
+                "Rank", "Pressure rows", "Pressure matches", "Survival ordinary (%)",
+                "Survival pressure (%)", "Survival Δ (pp)", "Boundary ordinary (%)",
+                "Boundary pressure (%)", "Boundary Δ (pp)",
+            ],
+            player_a: [
+                int(row_a["rank"]), int(row_a["pressure_deliveries"]), int(row_a["pressure_matches"]),
+                f"{row_a['survival_ordinary']*100:.2f}", f"{row_a['survival_pressure']*100:.2f}",
+                f"{row_a['survival_delta']*100:+.2f}", f"{row_a['boundary_ordinary']*100:.2f}",
+                f"{row_a['boundary_pressure']*100:.2f}", f"{row_a['boundary_delta']*100:+.2f}",
+            ],
+            player_b: [
+                int(row_b["rank"]), int(row_b["pressure_deliveries"]), int(row_b["pressure_matches"]),
+                f"{row_b['survival_ordinary']*100:.2f}", f"{row_b['survival_pressure']*100:.2f}",
+                f"{row_b['survival_delta']*100:+.2f}", f"{row_b['boundary_ordinary']*100:.2f}",
+                f"{row_b['boundary_pressure']*100:.2f}", f"{row_b['boundary_delta']*100:+.2f}",
+            ],
+        })
+        st.dataframe(
+            comp_table.style.set_properties(**{"background-color": "#0f172a", "color": "#ffffff"}),
+            hide_index=True,
+            width="stretch",
+        )
+
 with methodology_tab:
-    st.subheader("How to read the rankings")
     definitions_column, outcomes_column = st.columns(2)
     with definitions_column:
         st.markdown(
