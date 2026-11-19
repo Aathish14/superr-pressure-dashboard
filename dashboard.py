@@ -49,10 +49,7 @@ st.markdown(
         border: 1px solid #4f46e5; border-radius: 12px; padding: 1rem 2rem;
         margin-bottom: 2rem; box-shadow: 0 8px 24px rgba(30, 41, 59, 0.4);
         display: flex; align-items: center; justify-content: space-between; gap: 1rem;}
-    .rr-logo {width: 70px; height: auto; border-radius: 4px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.4);}
-    .ipl-logo {width: 70px; height: auto; border-radius: 4px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.4);}
+    .rr-logo, .ipl-logo {width: 70px; height: auto; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));}
     .header-text h1 {color: #fbbf24; margin: 0; font-size: 1.75rem; letter-spacing: 1px;}
     .header-text .subtitle {color: #cbd5e1; margin-top: 0.25rem; font-size: 0.9rem;
         letter-spacing: 0.5px; text-transform: uppercase;}
