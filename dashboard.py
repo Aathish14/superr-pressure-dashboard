@@ -46,14 +46,15 @@ st.markdown(
     .stMetric [data-testid="stMetricValue"] {color: #fbbf24 !important; font-size: 1.75rem;}
     .stMetric [data-testid="stMetricLabel"] {color: #94a3b8 !important;}
     .logo-row {display: flex; justify-content: space-between; align-items: center;
-        margin: 0.5rem 0 1.5rem 0; gap: 2rem;}
-    .top-logo {width: 200px; height: auto; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.5));}
+        margin: 0.5rem 0 1rem 0; gap: 2rem;}
+    .top-logo {width: 140px; height: auto; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.5));}
     .blue-box {background: linear-gradient(90deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
-        border: 2px solid #4f46e5; border-radius: 16px; padding: 2.5rem 3rem;
-        margin-bottom: 2rem; box-shadow: 0 20px 60px rgba(15, 23, 42, 0.6);}
-    .blue-box h1 {color: #fbbf24; margin: 0; font-size: 3rem; letter-spacing: 3px;}
-    .blue-box .subtitle {color: #cbd5e1; margin-top: 0.75rem; font-size: 1.25rem;
-        letter-spacing: 1.5px; text-transform: uppercase;}
+        border: 2px solid #4f46e5; border-radius: 12px; padding: 1rem 2rem;
+        margin-bottom: 0; box-shadow: 0 20px 60px rgba(15, 23, 42, 0.6);
+        flex: 1; max-width: 600px; text-align: center;}
+    .blue-box h1 {color: #fbbf24; margin: 0; font-size: 1.75rem; letter-spacing: 2px;}
+    .blue-box .subtitle {color: #cbd5e1; margin-top: 0.5rem; font-size: 1rem;
+        letter-spacing: 1px; text-transform: uppercase;}
     .rr-badge {display: inline-block; background: #fbbf24; color: #1e1b4b;
         font-weight: 700; padding: 6px 16px; border-radius: 8px; font-size: 1rem;
         margin-left: 16px; letter-spacing: 2px;}
@@ -415,11 +416,11 @@ st.markdown(
     f"""
     <div class="logo-row">
         <img src="{RR_LOGO_B64}" class="top-logo" alt="RR Logo">
+        <div class="blue-box">
+            <h1>T20 Pressure Performance Dashboard <span class="rr-badge">RAJASTHAN ROYALS</span></h1>
+            <div class="subtitle">Pressure-Proxy Scouting System · IPL &amp; T20I · Rajasthan Royals Analytics</div>
+        </div>
         <img src="{IPL_LOGO_B64}" class="top-logo" alt="IPL Logo">
-    </div>
-    <div class="blue-box">
-        <h1>T20 Pressure Performance Dashboard <span class="rr-badge">RAJASTHAN ROYALS</span></h1>
-        <div class="subtitle">Pressure-Proxy Scouting System · IPL &amp; T20I · Rajasthan Royals Analytics</div>
     </div>
     """,
     unsafe_allow_html=True,
