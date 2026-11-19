@@ -369,6 +369,8 @@ def batter_bootstrap_ci(
     bat["survive_event"] = ~bat["batter_dismissed_on_strike"]
 
     # Pooled priors for this format/state (same as rank_batters)
+    scoped = scoped.copy()
+    scoped["survive_event"] = ~scoped["batter_dismissed_on_strike"]
     pressure_pool = scoped[scoped["batter_faced_proxy"] & pressure_mask.loc[scoped.index]]
     ordinary_pool = scoped[scoped["batter_faced_proxy"] & ~pressure_mask.loc[scoped.index]]
     prior_survival_p = pressure_pool["survive_event"].mean() if len(pressure_pool) else 0.5
@@ -445,6 +447,8 @@ def bowler_bootstrap_ci(
 
     # Pooled priors per phase/state (same as rank_bowlers)
     prior_rates = {}
+    scoped = scoped.copy()
+    scoped["pressure"] = scoped["partnership_delivery_index"].gt(partner_threshold)
     for phase in sub["bowling_phase"].dropna().unique():
         for press in (True, False):
             pool = scoped[scoped["bowling_phase"].eq(phase)]
