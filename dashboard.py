@@ -32,11 +32,13 @@ st.markdown(
     .stMetric [data-testid="stMetricValue"] {color: #fbbf24 !important; font-size: 1.75rem;}
     .stMetric [data-testid="stMetricLabel"] {color: #94a3b8 !important;}
     .luxury-header {background: linear-gradient(90deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
-        border: 1px solid #4f46e5; border-radius: 12px; padding: 1.5rem 2rem;
+        border: 1px solid #4f46e5; border-radius: 12px; padding: 1rem 2rem;
         margin-bottom: 2rem; box-shadow: 0 8px 24px rgba(30, 41, 59, 0.4);
-        display: flex; align-items: center; gap: 1.5rem;}
-    .rr-logo {width: 90px; height: auto; border-radius: 4px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);}
+        display: flex; align-items: center; justify-content: space-between; gap: 1rem;}
+    .rr-logo {width: 70px; height: auto; border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.4);}
+    .ipl-logo {width: 70px; height: auto; border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.4);}
     .header-text h1 {color: #fbbf24; margin: 0; font-size: 1.75rem; letter-spacing: 1px;}
     .header-text .subtitle {color: #cbd5e1; margin-top: 0.25rem; font-size: 0.9rem;
         letter-spacing: 0.5px; text-transform: uppercase;}
@@ -405,6 +407,7 @@ st.markdown(
             <h1>T20 Pressure Performance Dashboard <span class="rr-badge">RAJASTHAN ROYALS</span></h1>
             <div class="subtitle">Pressure-Proxy Scouting System · IPL &amp; T20I · Rajasthan Royals Analytics</div>
         </div>
+        <img src="ipl-logo.png" class="ipl-logo" alt="IPL Logo">
     </div>
     """,
     unsafe_allow_html=True,
