@@ -728,6 +728,13 @@ st.info(
     "Rates use delivery-event rows, not verified legal balls. The available fields do not support exact score-state, required-run-rate, or economy calculations."
 )
 
+st.markdown(
+    "<div style='background-color:#2c3e50;padding:10px;border-radius:5px;border-left:5px solid #fbbf24;'>"
+    "<strong>⏳ Please wait:</strong> This app loads heavy bootstrap confidence intervals, match-level provenance, and per-phase breakdowns on demand. "
+    "The first run may take a few seconds. Enable <em>Show 95% confidence intervals</em> only when you need statistical error bars.</div>",
+    unsafe_allow_html=True,
+)
+
 # ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
