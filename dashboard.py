@@ -92,6 +92,39 @@ def get_deliveries(data_dir: str) -> pd.DataFrame:
 
 
 @st.cache_data(show_spinner=False)
+def _batter_provenance_cached(
+    data_dir: str, format_group: str, player_id: object, pressure_mask_hash: str = "base",
+):
+    from pressure_proxy import load_data, prepare_deliveries, batter_match_provenance
+    balls, _, match_info = load_data(data_dir)
+    deliveries = prepare_deliveries(balls, match_info)
+    scoped = deliveries[deliveries["format_group"].eq(format_group)].copy()
+    return batter_match_provenance(scoped, format_group, player_id)
+
+
+@st.cache_data(show_spinner=False)
+def _bowler_provenance_cached(
+    data_dir: str, format_group: str, bowler_id: object, partner_threshold: int,
+):
+    from pressure_proxy import load_data, prepare_deliveries, bowler_match_provenance
+    balls, _, match_info = load_data(data_dir)
+    deliveries = prepare_deliveries(balls, match_info)
+    scoped = deliveries[deliveries["format_group"].eq(format_group)].copy()
+    return bowler_match_provenance(scoped, format_group, bowler_id, partner_threshold)
+
+
+@st.cache_data(show_spinner=False)
+def _bowler_phase_cached(
+    data_dir: str, format_group: str, bowler_id: object, partner_threshold: int,
+):
+    from pressure_proxy import load_data, prepare_deliveries, bowler_phase_breakdown
+    balls, _, match_info = load_data(data_dir)
+    deliveries = prepare_deliveries(balls, match_info)
+    scoped = deliveries[deliveries["format_group"].eq(format_group)].copy()
+    return bowler_phase_breakdown(scoped, format_group, bowler_id, partner_threshold)
+
+
+@st.cache_data(show_spinner=False)
 def get_rankings(
     data_dir: str,
     format_group: str,
@@ -893,10 +926,9 @@ with bowling_tab:
 
     st.markdown("#### Per-phase credited-wicket rates (top bowlers)")
     phase_rows = []
-    deliveries = get_deliveries(str(ROOT))
     for _, row in bowler_data_ci.head(min(10, len(bowler_data_ci))).iterrows():
-        phase_df = bowler_phase_breakdown(
-            deliveries, selected_format, row["bowler_id"], partner_threshold,
+        phase_df = _bowler_phase_cached(
+            str(ROOT), selected_format, row["bowler_id"], partner_threshold,
         )
         if phase_df.empty:
             continue
@@ -937,8 +969,8 @@ with drilldown_tab:
             if rr_team_id is not None and row["is_rr"]:
                 st.success("★ Rajasthan Royals player")
 
-            prov = batter_match_provenance(
-                get_deliveries(str(ROOT)), selected_format, row["player_id"],
+            prov = _batter_provenance_cached(
+                str(ROOT), selected_format, row["player_id"],
             )
             if not prov.empty:
                 st.markdown("#### Match-level pressure provenance (batter)")
@@ -969,8 +1001,8 @@ with drilldown_tab:
             if rr_team_id is not None and row["is_rr"]:
                 st.success("★ Rajasthan Royals player")
 
-            prov = bowler_match_provenance(
-                get_deliveries(str(ROOT)), selected_format, row["bowler_id"], partner_threshold,
+            prov = _bowler_provenance_cached(
+                str(ROOT), selected_format, row["bowler_id"], partner_threshold,
             )
             if not prov.empty:
                 st.markdown("#### Match-level pressure provenance (bowler)")
@@ -986,8 +1018,8 @@ with drilldown_tab:
                 )
                 st.caption("Matches where this bowler bowled pressure-state deliveries.")
 
-            phase_df = bowler_phase_breakdown(
-                get_deliveries(str(ROOT)), selected_format, row["bowler_id"], partner_threshold,
+            phase_df = _bowler_phase_cached(
+                str(ROOT), selected_format, row["bowler_id"], partner_threshold,
             )
             if not phase_df.empty:
                 st.markdown("#### Per-phase credited-wicket rates")
