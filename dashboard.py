@@ -671,6 +671,19 @@ with st.sidebar:
     partner_threshold = st.selectbox("Bowler: partnership index >", [20, 25, 30], index=1)
     min_pressure_matches = st.selectbox("Min pressure matches", [1, 2, 3, 4, 5], index=2)
 
+    st.markdown("---")
+    with st.expander("How to use", expanded=False):
+        st.markdown(
+            """
+- **Pick a format** — IPL or T20I (analyzed separately; not pooled).
+- **Adjust pressure sliders** — rankings recompute live; check stability via the overlap metric.
+- **Enable "Show 95% confidence intervals"** — adds bootstrap error bars to charts and CI columns to tables.
+- **Player Drill-down tab** — click any player to see match-level pressure provenance and per-phase rates.
+- **Compare Players** — switch between Batter / Bowler for head-to-head radar + metrics table.
+- **RR Scout View** — toggle to highlight Rajasthan Royals players (`★ RR`) and filter auction targets.
+"""
+        )
+
 try:
     batter_data, bowler_data = get_rankings(
         str(ROOT), selected_format,
