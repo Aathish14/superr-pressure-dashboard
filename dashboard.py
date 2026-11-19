@@ -692,7 +692,7 @@ with comparison_tab:
         )
         st.plotly_chart(fig_comp, width="stretch")
 
-        # Side-by-side metrics table
+        # Side-by-side metrics table (all values as strings for Arrow compatibility)
         comp_table = pd.DataFrame({
             "Metric": [
                 "Rank", "Pressure rows", "Pressure matches", "Survival ordinary (%)",
@@ -700,13 +700,13 @@ with comparison_tab:
                 "Boundary pressure (%)", "Boundary Δ (pp)",
             ],
             player_a: [
-                int(row_a["rank"]), int(row_a["pressure_deliveries"]), int(row_a["pressure_matches"]),
+                str(int(row_a["rank"])), str(int(row_a["pressure_deliveries"])), str(int(row_a["pressure_matches"])),
                 f"{row_a['survival_ordinary']*100:.2f}", f"{row_a['survival_pressure']*100:.2f}",
                 f"{row_a['survival_delta']*100:+.2f}", f"{row_a['boundary_ordinary']*100:.2f}",
                 f"{row_a['boundary_pressure']*100:.2f}", f"{row_a['boundary_delta']*100:+.2f}",
             ],
             player_b: [
-                int(row_b["rank"]), int(row_b["pressure_deliveries"]), int(row_b["pressure_matches"]),
+                str(int(row_b["rank"])), str(int(row_b["pressure_deliveries"])), str(int(row_b["pressure_matches"])),
                 f"{row_b['survival_ordinary']*100:.2f}", f"{row_b['survival_pressure']*100:.2f}",
                 f"{row_b['survival_delta']*100:+.2f}", f"{row_b['boundary_ordinary']*100:.2f}",
                 f"{row_b['boundary_pressure']*100:.2f}", f"{row_b['boundary_delta']*100:+.2f}",
