@@ -177,29 +177,31 @@ st.set_page_config(
 st.markdown(
     """
     <style>
+    .stApp {background: #0a020a;}
     .block-container {padding-top: 1rem; padding-bottom: 2.5rem; max-width: 1600px;}
-    h1, h2, h3 {color: #ffffff;}
-    .stMetric {background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        border: 1px solid #334155; padding: 1rem 1.25rem; border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);}
+    h1, h2, h3 {color: #f8bbd0;}
+    div[data-baseweb="notification"] {background: #1a0a1e !important; border: 1px solid #d5006a !important; color: #f8bbd0 !important;}
+    .stMetric {background: linear-gradient(135deg, #1a0a1e 0%, #2d142d 100%);
+        border: 1px solid #d5006a; padding: 1rem 1.25rem; border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(213, 0, 106, 0.3);}
     .stMetric [data-testid="stMetricValue"] {color: #fbbf24 !important; font-size: 1.75rem;}
-    .stMetric [data-testid="stMetricLabel"] {color: #94a3b8 !important;}
+    .stMetric [data-testid="stMetricLabel"] {color: #e1b3e8 !important;}
     .logo-row {display: flex; justify-content: space-between; align-items: center;
         margin: 0.5rem 0 1rem 0; gap: 2rem;}
-    .top-logo {width: 140px; height: auto; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.5));}
-    .blue-box {background: linear-gradient(90deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
-        border: 2px solid #4f46e5; border-radius: 12px; padding: 1rem 2rem;
-        margin-bottom: 0; box-shadow: 0 20px 60px rgba(15, 23, 42, 0.6);
+    .top-logo {width: 140px; height: auto; filter: drop-shadow(0 6px 12px rgba(213, 0, 106, 0.4));}
+    .blue-box {background: linear-gradient(90deg, #1a0a1e 0%, #2d142d 50%, #1a0a1e 100%);
+        border: 2px solid #d5006a; border-radius: 12px; padding: 1rem 2rem;
+        margin-bottom: 0; box-shadow: 0 20px 60px rgba(213, 0, 106, 0.4);
         flex: 1; max-width: 600px; text-align: center;}
     .blue-box h1 {color: #fbbf24; margin: 0; font-size: 1.75rem; letter-spacing: 2px;}
-    .blue-box .subtitle {color: #cbd5e1; margin-top: 0.5rem; font-size: 1rem;
+    .blue-box .subtitle {color: #e1b3e8; margin-top: 0.5rem; font-size: 1rem;
         letter-spacing: 1px; text-transform: uppercase;}
-    .rr-badge {display: inline-block; background: #fbbf24; color: #1e1b4b;
+    .rr-badge {display: inline-block; background: #d5006a; color: #ffffff;
         font-weight: 700; padding: 6px 16px; border-radius: 8px; font-size: 1rem;
-        margin-left: 16px; letter-spacing: 2px;}
-    .tab-card {background: #0f172a; border: 1px solid #334155; border-radius: 10px;
-        padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3);}
-    .section-title {color: #fbbf24; font-size: 1.25rem; font-weight: 600;
+        margin-left: 16px; letter-spacing: 2px; box-shadow: 0 2px 8px rgba(213, 0, 106, 0.4);}
+    .tab-card {background: #1a0a1e; border: 1px solid #3d143d; border-radius: 10px;
+        padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 4px 6px rgba(213, 0, 106, 0.2);}
+    .section-title {color: #d5006a; font-size: 1.25rem; font-weight: 600;
         margin-bottom: 1rem; letter-spacing: 0.5px; text-transform: uppercase;}
     </style>
     """,
@@ -314,7 +316,7 @@ def batter_figure(frame: pd.DataFrame, show_ci: bool = False) -> go.Figure:
             "label": False,
         },
         category_orders={"selection": ["Other eligible", "Top 10"]},
-        color_discrete_map={"Other eligible": "#9aafbd", "Top 10": "#e07a36"},
+        color_discrete_map={"Other eligible": "#8c1c52", "Top 10": "#d5006a"},
         labels={
             "survival_delta_pp": "Survival change (percentage points)",
             "boundary_delta_pp": "Boundary change (percentage points)",
@@ -347,8 +349,8 @@ def batter_figure(frame: pd.DataFrame, show_ci: bool = False) -> go.Figure:
     figure = px.scatter(chart, x="survival_delta_pp", y="boundary_delta_pp", **scatter_kwargs)
     figure.update_traces(marker={"size": 11, "line": {"width": 1, "color": "white"}})
     figure.update_traces(textposition="top center", selector={"mode": "markers+text"})
-    figure.add_hline(y=0, line_dash="dot", line_color="#667788", opacity=0.7)
-    figure.add_vline(x=0, line_dash="dot", line_color="#667788", opacity=0.7)
+    figure.add_hline(y=0, line_dash="dot", line_color="#d5006a", opacity=0.7)
+    figure.add_vline(x=0, line_dash="dot", line_color="#d5006a", opacity=0.7)
     figure.update_layout(
         height=560,
         margin={"l": 15, "r": 20, "t": 25, "b": 20},
@@ -363,7 +365,7 @@ def bowler_figures(frame: pd.DataFrame, display_rows: int, show_ci: bool = False
     ordered = visible.sort_values("delta_per_100", ascending=True)
     bar_kwargs = dict(
         color="delta_per_100",
-        color_continuous_scale=["#b84d4d", "#e5b85c", "#2c8c78"],
+        color_continuous_scale=["#ad1457", "#f06292", "#d5006a"],
         hover_data={
             "rank": True,
             "pressure_deliveries": True,
@@ -407,7 +409,7 @@ def bowler_figures(frame: pd.DataFrame, display_rows: int, show_ci: bool = False
             x=ordered["ordinary_wickets_per_100"],
             y=ordered["bowler_name"],
             orientation="h",
-            marker_color="#7393a7",
+            marker_color="#8c1c52",
             hovertemplate="%{y}<br>Ordinary: %{x:.2f} per 100 rows<extra></extra>",
         )
     )
@@ -417,7 +419,7 @@ def bowler_figures(frame: pd.DataFrame, display_rows: int, show_ci: bool = False
             x=ordered["pressure_wickets_per_100"],
             y=ordered["bowler_name"],
             orientation="h",
-            marker_color="#e07a36",
+            marker_color="#d5006a",
             hovertemplate="%{y}<br>Pressure: %{x:.2f} per 100 rows<extra></extra>",
         )
     )
@@ -441,9 +443,9 @@ def methodology_flow_figure() -> go.Figure:
     fig.add_trace(
         go.Scatter(
             x=[0], y=[0], mode="markers+text",
-            marker=dict(size=42, color="#1f3a5f"),
+            marker=dict(size=42, color="#880e4f"),
             text="Raw event data", textposition="bottom center",
-            textfont=dict(color="white", size=10),
+            textfont=dict(color="#f8bbd0", size=10),
             hovertext="ball_by_ball.csv<br>matches.csv<br>competitions.csv",
             hoverinfo="text", showlegend=False,
         )
@@ -451,9 +453,9 @@ def methodology_flow_figure() -> go.Figure:
     fig.add_trace(
         go.Scatter(
             x=[1.6], y=[0], mode="markers+text",
-            marker=dict(size=42, color="#1f3a5f"),
+            marker=dict(size=42, color="#880e4f"),
             text="Prepare deliveries", textposition="bottom center",
-            textfont=dict(color="white", size=10),
+            textfont=dict(color="#f8bbd0", size=10),
             hovertext="Filter innings 1–2<br>Exclude revised-overs matches<br>86,668 IPL / 102,887 T20I rows",
             hoverinfo="text", showlegend=False,
         )
@@ -463,9 +465,9 @@ def methodology_flow_figure() -> go.Figure:
     fig.add_trace(
         go.Scatter(
             x=[0.6], y=[-1.6], mode="markers+text",
-            marker=dict(size=42, color="#e07a36"),
+            marker=dict(size=42, color="#d5006a"),
             text="Batter pressure", textposition="bottom center",
-            textfont=dict(color="white", size=10),
+            textfont=dict(color="#f8bbd0", size=10),
             hovertext="Overs 1–6 with ≥2 wickets lost<br>OR overs 16–20 (death)",
             hoverinfo="text", showlegend=False,
         )
@@ -473,9 +475,9 @@ def methodology_flow_figure() -> go.Figure:
     fig.add_trace(
         go.Scatter(
             x=[2.6], y=[-1.6], mode="markers+text",
-            marker=dict(size=42, color="#e07a36"),
+            marker=dict(size=42, color="#d5006a"),
             text="Bowler pressure", textposition="bottom center",
-            textfont=dict(color="white", size=10),
+            textfont=dict(color="#f8bbd0", size=10),
             hovertext="Partnership event-row index > 25<br>Any wicket resets the counter",
             hoverinfo="text", showlegend=False,
         )
@@ -485,9 +487,9 @@ def methodology_flow_figure() -> go.Figure:
     fig.add_trace(
         go.Scatter(
             x=[0.6], y=[-3.1], mode="markers+text",
-            marker=dict(size=42, color="#f0ad4e"),
+            marker=dict(size=42, color="#f06292"),
             text="Batter outcomes", textposition="bottom center",
-            textfont=dict(color="white", size=10),
+            textfont=dict(color="#f8bbd0", size=10),
             hovertext="Survival rate (non-dismissal)<br>Boundary rate (4s & 6s)",
             hoverinfo="text", showlegend=False,
         )
@@ -495,9 +497,9 @@ def methodology_flow_figure() -> go.Figure:
     fig.add_trace(
         go.Scatter(
             x=[2.6], y=[-3.1], mode="markers+text",
-            marker=dict(size=42, color="#f0ad4e"),
+            marker=dict(size=42, color="#f06292"),
             text="Bowler outcomes", textposition="bottom center",
-            textfont=dict(color="white", size=10),
+            textfont=dict(color="#f8bbd0", size=10),
             hovertext="Credited wickets per phase<br>(powerplay / middle / death)",
             hoverinfo="text", showlegend=False,
         )
@@ -507,9 +509,9 @@ def methodology_flow_figure() -> go.Figure:
     fig.add_trace(
         go.Scatter(
             x=[1.6], y=[-4.6], mode="markers+text",
-            marker=dict(size=42, color="#2c8c78"),
+            marker=dict(size=42, color="#c2185b"),
             text="Shrinkage (κ=30)", textposition="bottom center",
-            textfont=dict(color="white", size=10),
+            textfont=dict(color="#f8bbd0", size=10),
             hovertext="Shrink toward state/phase pooled rates<br>30 pseudo-rows prior",
             hoverinfo="text", showlegend=False,
         )
@@ -519,9 +521,9 @@ def methodology_flow_figure() -> go.Figure:
     fig.add_trace(
         go.Scatter(
             x=[1.6], y=[-6.1], mode="markers+text",
-            marker=dict(size=42, color="#8e44ad"),
+            marker=dict(size=42, color="#ad1457"),
             text="Eligibility", textposition="bottom center",
-            textfont=dict(color="white", size=10),
+            textfont=dict(color="#f8bbd0", size=10),
             hovertext="≥30 pressure rows across ≥3 matches<br>+ ≥30 ordinary rows<br>(IPL: 126 batters / 129 bowlers<br>T20I: 198 batters / 186 bowlers)",
             hoverinfo="text", showlegend=False,
         )
@@ -531,9 +533,9 @@ def methodology_flow_figure() -> go.Figure:
     fig.add_trace(
         go.Scatter(
             x=[1.6], y=[-7.6], mode="markers+text",
-            marker=dict(size=42, color="#34495e"),
+            marker=dict(size=42, color="#880e4f"),
             text="Pareto ranking", textposition="bottom center",
-            textfont=dict(color="white", size=10),
+            textfont=dict(color="#f8bbd0", size=10),
             hovertext="ΔSurvival & ΔBoundary (batters)<br>ΔW per 100 rows (bowlers)<br>Positive-both → Pareto front order",
             hoverinfo="text", showlegend=False,
         )
@@ -563,7 +565,7 @@ def methodology_flow_figure() -> go.Figure:
             x=x1, y=y1, ax=x0, ay=y0,
             xref="x", yref="y", axref="x", ayref="y",
             showarrow=True, arrowhead=2, arrowsize=1, arrowwidth=1.5,
-            arrowcolor="#667788",
+            arrowcolor="#d5006a",
         )
 
     # Sensitivity loop label (curved dashed arrow text)
@@ -571,19 +573,19 @@ def methodology_flow_figure() -> go.Figure:
         x=0.3, y=-4.6,
         text="Sensitivity<br>feedback",
         showarrow=False,
-        font=dict(color="#c0392b", size=9),
-        bgcolor="rgba(192,57,43,0.1)",
-        bordercolor="#c0392b",
+        font=dict(color="#d5006a", size=9),
+        bgcolor="rgba(213,0,106,0.1)",
+        bordercolor="#d5006a",
     )
 
     # Stage band labels
     stage_labels = [
-        (0.8, 0.7, "DATA", "#1f3a5f"),
-        (1.6, -0.9, "PRESSURE STATES", "#e07a36"),
-        (1.6, -2.4, "OUTCOME METRICS", "#f0ad4e"),
-        (1.6, -3.9, "SHRINKAGE", "#2c8c78"),
-        (1.6, -5.4, "ELIGIBILITY", "#8e44ad"),
-        (1.6, -6.9, "RANKING", "#34495e"),
+        (0.8, 0.7, "DATA", "#880e4f"),
+        (1.6, -0.9, "PRESSURE STATES", "#d5006a"),
+        (1.6, -2.4, "OUTCOME METRICS", "#f06292"),
+        (1.6, -3.9, "SHRINKAGE", "#c2185b"),
+        (1.6, -5.4, "ELIGIBILITY", "#ad1457"),
+        (1.6, -6.9, "RANKING", "#880e4f"),
     ]
     for sx, sy, slabel, scolor in stage_labels:
         fig.add_annotation(
@@ -1119,24 +1121,24 @@ with comparison_tab:
                 theta=categories + [categories[0]],
                 fill="toself",
                 name=player_a,
-                line=dict(color="#fbbf24", width=3),
-                fillcolor="rgba(251, 191, 36, 0.25)",
+                line=dict(color="#d5006a", width=3),
+                fillcolor="rgba(213, 0, 106, 0.25)",
             ))
             fig_comp.add_trace(go.Scatterpolar(
                 r=values_b + [values_b[0]],
                 theta=categories + [categories[0]],
                 fill="toself",
                 name=player_b,
-                line=dict(color="#38bdf8", width=3),
-                fillcolor="rgba(56, 189, 248, 0.25)",
+                line=dict(color="#fbbf24", width=3),
+                fillcolor="rgba(251, 191, 36, 0.25)",
             ))
             fig_comp.update_layout(
                 polar=dict(
-                    radialaxis=dict(visible=True, range=[0, 100], gridcolor="#334155"),
-                    angularaxis=dict(gridcolor="#334155"),
-                    bgcolor="#0f172a",
+                    radialaxis=dict(visible=True, range=[0, 100], gridcolor="#3d143d"),
+                    angularaxis=dict(gridcolor="#3d143d"),
+                    bgcolor="#1a0a1e",
                 ),
-                paper_bgcolor="#0f172a",
+                paper_bgcolor="#1a0a1e",
                 plot_bgcolor="#0f172a",
                 font=dict(color="#ffffff", size=11),
                 legend=dict(bgcolor="#0f172a", font=dict(color="#cbd5e1")),
@@ -1207,24 +1209,24 @@ with comparison_tab:
                 theta=categories + [categories[0]],
                 fill="toself",
                 name=player_a,
-                line=dict(color="#fbbf24", width=3),
-                fillcolor="rgba(251, 191, 36, 0.25)",
+                line=dict(color="#d5006a", width=3),
+                fillcolor="rgba(213, 0, 106, 0.25)",
             ))
             fig_comp.add_trace(go.Scatterpolar(
                 r=values_b + [values_b[0]],
                 theta=categories + [categories[0]],
                 fill="toself",
                 name=player_b,
-                line=dict(color="#38bdf8", width=3),
-                fillcolor="rgba(56, 189, 248, 0.25)",
+                line=dict(color="#fbbf24", width=3),
+                fillcolor="rgba(251, 191, 36, 0.25)",
             ))
             fig_comp.update_layout(
                 polar=dict(
-                    radialaxis=dict(visible=True, range=[0, 100], gridcolor="#334155"),
-                    angularaxis=dict(gridcolor="#334155"),
-                    bgcolor="#0f172a",
+                    radialaxis=dict(visible=True, range=[0, 100], gridcolor="#3d143d"),
+                    angularaxis=dict(gridcolor="#3d143d"),
+                    bgcolor="#1a0a1e",
                 ),
-                paper_bgcolor="#0f172a",
+                paper_bgcolor="#1a0a1e",
                 plot_bgcolor="#0f172a",
                 font=dict(color="#ffffff", size=11),
                 legend=dict(bgcolor="#0f172a", font=dict(color="#cbd5e1")),
