@@ -256,31 +256,14 @@ def make_bowler_table(frame: pd.DataFrame) -> pd.DataFrame:
     return table
 
 
-def batter_figure(frame: pd.DataFrame) -> go.Figure:
+def batter_figure(frame: pd.DataFrame, show_ci: bool = False) -> go.Figure:
     chart = frame.copy()
     chart["survival_delta_pp"] = chart["survival_delta"] * 100
     chart["boundary_delta_pp"] = chart["boundary_delta"] * 100
     chart["selection"] = chart["rank"].le(10).map({True: "Top 10", False: "Other eligible"})
     chart["label"] = chart["name"].where(chart["rank"].le(10), "")
 
-    # Asymmetric 95% CI error bars (percentage points)
-    chart["surv_err_plus"] = (
-        chart.get("survival_delta_ci_high", chart["survival_delta"]) * 100 - chart["survival_delta_pp"]
-    )
-    chart["surv_err_minus"] = (
-        chart["survival_delta_pp"] - chart.get("survival_delta_ci_low", chart["survival_delta"]) * 100
-    )
-    chart["bound_err_plus"] = (
-        chart.get("boundary_delta_ci_high", chart["boundary_delta"]) * 100 - chart["boundary_delta_pp"]
-    )
-    chart["bound_err_minus"] = (
-        chart["boundary_delta_pp"] - chart.get("boundary_delta_ci_low", chart["boundary_delta"]) * 100
-    )
-
-    figure = px.scatter(
-        chart,
-        x="survival_delta_pp",
-        y="boundary_delta_pp",
+    scatter_kwargs = dict(
         color="selection",
         text="label",
         hover_name="name",
@@ -293,14 +276,6 @@ def batter_figure(frame: pd.DataFrame) -> go.Figure:
             "selection": False,
             "label": False,
         },
-        error_x={
-            "array": chart["surv_err_plus"],
-            "arrayminus": chart["surv_err_minus"],
-        },
-        error_y={
-            "array": chart["bound_err_plus"],
-            "arrayminus": chart["bound_err_minus"],
-        },
         category_orders={"selection": ["Other eligible", "Top 10"]},
         color_discrete_map={"Other eligible": "#9aafbd", "Top 10": "#e07a36"},
         labels={
@@ -312,6 +287,29 @@ def batter_figure(frame: pd.DataFrame) -> go.Figure:
             "pressure_matches": "Pressure matches",
         },
     )
+    if show_ci:
+        chart["surv_err_plus"] = (
+            chart.get("survival_delta_ci_high", chart["survival_delta"]) * 100 - chart["survival_delta_pp"]
+        )
+        chart["surv_err_minus"] = (
+            chart["survival_delta_pp"] - chart.get("survival_delta_ci_low", chart["survival_delta"]) * 100
+        )
+        chart["bound_err_plus"] = (
+            chart.get("boundary_delta_ci_high", chart["boundary_delta"]) * 100 - chart["boundary_delta_pp"]
+        )
+        chart["bound_err_minus"] = (
+            chart["boundary_delta_pp"] - chart.get("boundary_delta_ci_low", chart["boundary_delta"]) * 100
+        )
+        scatter_kwargs["error_x"] = {
+            "array": chart["surv_err_plus"],
+            "arrayminus": chart["surv_err_minus"],
+        }
+        scatter_kwargs["error_y"] = {
+            "array": chart["bound_err_plus"],
+            "arrayminus": chart["bound_err_minus"],
+        }
+
+    figure = px.scatter(chart, x="survival_delta_pp", y="boundary_delta_pp", **scatter_kwargs)
     figure.update_traces(marker={"size": 11, "line": {"width": 1, "color": "white"}})
     figure.update_traces(textposition="top center", selector={"mode": "markers+text"})
     figure.add_hline(y=0, line_dash="dot", line_color="#667788", opacity=0.7)
@@ -325,14 +323,10 @@ def batter_figure(frame: pd.DataFrame) -> go.Figure:
     return figure
 
 
-def bowler_figures(frame: pd.DataFrame, display_rows: int) -> tuple[go.Figure, go.Figure]:
+def bowler_figures(frame: pd.DataFrame, display_rows: int, show_ci: bool = False) -> tuple[go.Figure, go.Figure]:
     visible = frame.head(display_rows).copy()
     ordered = visible.sort_values("delta_per_100", ascending=True)
-    differential = px.bar(
-        ordered,
-        x="delta_per_100",
-        y="bowler_name",
-        orientation="h",
+    bar_kwargs = dict(
         color="delta_per_100",
         color_continuous_scale=["#b84d4d", "#e5b85c", "#2c8c78"],
         hover_data={
@@ -342,14 +336,22 @@ def bowler_figures(frame: pd.DataFrame, display_rows: int) -> tuple[go.Figure, g
             "pressure_wickets": True,
             "delta_per_100": ":.2f",
         },
-        error_x={
-            "array": ordered.get("delta_per_100_ci_high", ordered["delta_per_100"]) - ordered["delta_per_100"],
-            "arrayminus": ordered["delta_per_100"] - ordered.get("delta_per_100_ci_low", ordered["delta_per_100"]),
-        },
         labels={
             "delta_per_100": "Credited-wicket change per 100 rows",
             "bowler_name": "Bowler",
         },
+    )
+    if show_ci:
+        bar_kwargs["error_x"] = {
+            "array": ordered.get("delta_per_100_ci_high", ordered["delta_per_100"]) - ordered["delta_per_100"],
+            "arrayminus": ordered["delta_per_100"] - ordered.get("delta_per_100_ci_low", ordered["delta_per_100"]),
+        }
+    differential = px.bar(
+        ordered,
+        x="delta_per_100",
+        y="bowler_name",
+        orientation="h",
+        **bar_kwargs,
     )
     differential.update_traces(texttemplate="%{x:.2f}", textposition="outside", cliponaxis=False)
     differential.update_layout(
@@ -677,6 +679,10 @@ with st.sidebar:
             (bowler_data["delta_per_100"] > 0)
         ]
 
+    st.markdown("---")
+    show_ci = st.toggle("Show 95% confidence intervals", value=False,
+                        help="Bootstrap CI over matches (400 resamples). Computed on demand.")
+
 top_batters = batter_data.head(10)
 top_bowlers = bowler_data.head(10)
 
@@ -796,7 +802,31 @@ def _merge_batter_ci(frame: pd.DataFrame, max_players: int) -> pd.DataFrame:
         result.loc[ci_df.index, col] = ci_df[col]
     return result
 
-batter_data_ci = _merge_batter_ci(batter_data, maximum_rows)
+
+def _merge_bowler_ci(frame: pd.DataFrame, max_players: int) -> pd.DataFrame:
+    ci_rows = []
+    for _, row in frame.head(max_players).iterrows():
+        ci = _bowler_ci_cached(
+            str(ROOT), selected_format, row["bowler_id"], row["bowler_name"], partner_threshold,
+        )
+        ci_rows.append({
+            "delta_per_100_ci_low": ci.get("delta_per_100_ci", (np.nan, np.nan))[0],
+            "delta_per_100_ci_high": ci.get("delta_per_100_ci", (np.nan, np.nan))[1],
+        })
+    ci_df = pd.DataFrame(ci_rows, index=frame.head(max_players).index)
+    result = frame.copy()
+    for col in ci_df.columns:
+        result.loc[ci_df.index, col] = ci_df[col]
+    return result
+
+# CI is computed lazily only when the judge enables the toggle.
+# Default: no CI columns (fast load).
+batter_data_ci = batter_data
+bowler_data_ci = bowler_data
+if show_ci:
+    with st.spinner("Computing bootstrap confidence intervals..."):
+        batter_data_ci = _merge_batter_ci(batter_data, maximum_rows)
+        bowler_data_ci = _merge_bowler_ci(bowler_data, maximum_rows)
 
 with batting_tab:
     st.subheader(f"{selected_format} batting performance")
@@ -804,7 +834,7 @@ with batting_tab:
         "The scatterplot compares each eligible batter’s pressure-minus-ordinary survival and boundary-rate changes. "
         "The highlighted labels are the reported top ten."
     )
-    st.plotly_chart(batter_figure(batter_data_ci), width="stretch")
+    st.plotly_chart(batter_figure(batter_data_ci, show_ci=show_ci), width="stretch")
     st.markdown(f"#### Ranked batters (showing {min(display_rows, len(batter_data_ci))} of {len(batter_data_ci)})")
     st.dataframe(
         make_batter_table(batter_data_ci.head(display_rows)).style.format(
@@ -812,13 +842,11 @@ with batting_tab:
                 "Survival ordinary (%)": ".2f",
                 "Survival pressure (%)": ".2f",
                 "Survival change (pp)": "+.2f",
-                "Survival CI low (pp)": "+.2f",
-                "Survival CI high (pp)": "+.2f",
+                **({"Survival CI low (pp)": "+.2f", "Survival CI high (pp)": "+.2f"} if show_ci else {}),
                 "Boundary ordinary (%)": ".2f",
                 "Boundary pressure (%)": ".2f",
                 "Boundary change (pp)": "+.2f",
-                "Boundary CI low (pp)": "+.2f",
-                "Boundary CI high (pp)": "+.2f",
+                **({"Boundary CI low (pp)": "+.2f", "Boundary CI high (pp)": "+.2f"} if show_ci else {}),
             }
         ),
         hide_index=True,
@@ -841,14 +869,12 @@ def _merge_bowler_ci(frame: pd.DataFrame, max_players: int) -> pd.DataFrame:
         result.loc[ci_df.index, col] = ci_df[col]
     return result
 
-bowler_data_ci = _merge_bowler_ci(bowler_data, maximum_rows)
-
 with bowling_tab:
     st.subheader(f"{selected_format} bowling performance")
     st.markdown(
         "The differential chart ranks credited wickets per 100 event rows; the paired bars compare ordinary and pressure rates."
     )
-    differential_figure, rate_figure = bowler_figures(bowler_data_ci, display_rows)
+    differential_figure, rate_figure = bowler_figures(bowler_data_ci, display_rows, show_ci=show_ci)
     st.plotly_chart(differential_figure, width="stretch")
     st.plotly_chart(rate_figure, width="stretch")
     st.markdown(f"#### Ranked bowlers (showing {min(display_rows, len(bowler_data_ci))} of {len(bowler_data_ci)})")
@@ -858,8 +884,7 @@ with bowling_tab:
                 "Ordinary rate (/100 rows)": ".2f",
                 "Pressure rate (/100 rows)": ".2f",
                 "Change (/100 rows)": "+.2f",
-                "CI low (/100 rows)": "+.2f",
-                "CI high (/100 rows)": "+.2f",
+                **({"CI low (/100 rows)": "+.2f", "CI high (/100 rows)": "+.2f"} if show_ci else {}),
             }
         ),
         hide_index=True,
